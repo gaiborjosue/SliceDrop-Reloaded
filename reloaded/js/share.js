@@ -457,7 +457,14 @@ function getRoomIdFromLocation() {
 
 function makeShareUrl(roomId) {
   const url = new URL(window.location.href);
-  url.pathname = `/share/${encodeURIComponent(roomId)}`;
-  url.searchParams.delete("room");
+  const signal = url.searchParams.get("signal");
+  url.search = "";
+  url.searchParams.set("room", roomId);
+
+  if (signal) {
+    url.searchParams.set("signal", signal);
+  }
+
+  url.hash = "";
   return url.toString();
 }
