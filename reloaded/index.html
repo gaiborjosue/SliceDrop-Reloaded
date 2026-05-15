@@ -25,13 +25,26 @@
     <script type='text/javascript' src='js/x.controller.js'></script>
 
     <script type="module" src="./js/index.js"></script>
-    <script type="module" src="./js/util.js"></script>
 
     <link rel="icon" href="./gfx/slicedrop_logo.png" />
   </head>
   <body id='body'>
 
     <div id='dropZoneOverlay'><div id='dropZoneHint'>Drop files anywhere...</div></div>
+
+    <section id="sharePanel" class="share-panel hidden" aria-live="polite">
+      <button id="shareButton" class="share-panel__icon-button" type="button" disabled aria-label="Share volume" title="Share volume">↗</button>
+      <div id="sharePopover" class="share-panel__popover hidden">
+        <div class="share-panel__link-row">
+          <input id="shareLink" class="share-panel__link hidden" type="text" readonly aria-label="Share link" />
+          <button id="copyShareLink" class="share-panel__icon-button share-panel__icon-button--secondary hidden" type="button" aria-label="Copy share link" title="Copy link">⧉</button>
+        </div>
+        <div id="shareStatus" class="share-panel__status">Drop a .nii or .nii.gz file to share.</div>
+        <div id="shareProgress" class="share-panel__progress hidden">
+          <div id="shareProgressBar" class="share-panel__progress-bar"></div>
+        </div>
+      </div>
+    </section>
 
     <!-- Landing page container -->
     <div id="landingContainer" class="landing-container">

@@ -1,0 +1,9 @@
+{
+  "name": "slicedrop-reloaded-sharing-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first NIfTI sharing viewer built on SliceDrop Reloaded and NiiVue.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

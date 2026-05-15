@@ -1,0 +1,17 @@
+{
+  "name": "slicedrop-signaling-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WebSocket signaling service for SliceDrop Reloaded peer-to-peer sharing.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

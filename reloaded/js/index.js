@@ -1,4 +1,6 @@
 import * as niivue from "https://unpkg.com/@niivue/niivue@0.57.0/dist/index.js";
+import "./util.js";
+import { initSharing } from "./share.js";
 
 window.niivue = niivue;
 
@@ -9,6 +11,11 @@ const overlay = document.getElementById("dropZoneOverlay");
 const selectbutton = document.getElementById("fileInput");
 const landingpage = document.getElementById("landingContainer");
 const viewer = document.getElementById("viewerContainer");
+const shareController = initSharing({
+    loadReceivedFile: (file) => loadFiles([file], { received: true }),
+});
+
+window.shareController = shareController;
 
 window.addEventListener("dragenter", (e) => {
     e.preventDefault();
@@ -34,11 +41,7 @@ window.addEventListener("drop", (e) => {
 
     console.log('files dropped', e.dataTransfer.files);
 
-    var de = new DragEvent(e.type, e);
-
-    document.getElementById('gl1').dispatchEvent(de);
-
-    // load(e.dataTransfer.files);
+    loadFiles(e.dataTransfer.files);
 
 });
 // selectbutton.addEventListener("change", (e) => {
@@ -124,6 +127,8 @@ function start() {
 
     window.nv = nv;
 
+    loadInitialUrl();
+
 }
 
 function loadExample(which) {
@@ -133,90 +138,168 @@ function loadExample(which) {
 }
 
 async function loadUrl(url) {
+    const fileName = getUrlFileName(url);
 
-    if (url.endsWith('.nvd')) {
+    if (isNvdUrl(url, fileName)) {
 
         niivue.NVDocument.loadFromUrl(url).then((doc) => {
             nv.loadDocument(doc);
             window.doc = doc;
         });
         
+    } else if (fileName) {
+        await nv.loadImages([{ url, name: fileName }]);
     } else {
-        nv.loadFromUrl(url);
+        await nv.loadFromUrl(url);
     }
 
     showViewer();
 
 }
 
-// async function load(files) {
+function loadInitialUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const url = params.get("url");
 
-//     var nv = window.nv;
+    if (!url) {
+        return;
+    }
 
-//     console.log(files);
+    loadUrl(url).catch((error) => {
+        console.error("Failed to load URL", error);
+    });
+}
 
-//     // SORT DATA BY SIZE, LARGE FILES FIRST
-//     files = Array.from(files);
+function getUrlFileName(url) {
+    const params = new URLSearchParams(window.location.search);
+    const explicitName = params.get("name");
 
-//     const sortedFiles = files.sort((a, b) => b.size - a.size);
+    if (explicitName) {
+        return explicitName;
+    }
 
+    try {
+        const parsed = new URL(url);
+        const pathName = decodeURIComponent(parsed.pathname.split("/").pop() || "");
 
-//     var VOLUMELOADED = false;
-//     var MESHLOADED = false;
+        if (hasKnownNiiVueExtension(pathName)) {
+            return pathName;
+        }
 
-//     var nvdoc = null;
+        if (parsed.hostname === "drive.google.com" && parsed.pathname === "/uc") {
+            return "volume.nii.gz";
+        }
 
-//     //
-//     // LOAD DATA
-//     //
-//     await Promise.all( sortedFiles.map(file => {
+        if (parsed.hostname === "drive.usercontent.google.com" && parsed.pathname === "/download") {
+            return "volume.nii.gz";
+        }
 
-//       const filename = file.name.toLowerCase();
+        if (isGoogleDriveApiMediaUrl(parsed)) {
+            return "volume.nii.gz";
+        }
 
-//       if (filename.endsWith('.nvd')) {
-        
+        const nestedUrl = parsed.searchParams.get("url");
+        if (nestedUrl) {
+            return getFileNameFromRemoteUrl(nestedUrl) || "volume.nii.gz";
+        }
+    } catch (error) {
+        if (hasKnownNiiVueExtension(url)) {
+            return url.split("/").pop();
+        }
+    }
 
-//         // this is a saved scene
-//         nvdoc = niivue.NVDocument.loadFromFile(file);
+    return "";
+}
 
+function getFileNameFromRemoteUrl(url) {
+    try {
+        const parsed = new URL(url);
+        const pathName = decodeURIComponent(parsed.pathname.split("/").pop() || "");
 
-//       } else {
+        if (hasKnownNiiVueExtension(pathName)) {
+            return pathName;
+        }
 
+        if (parsed.hostname === "drive.google.com" && parsed.pathname === "/uc") {
+            return "volume.nii.gz";
+        }
 
+        if (parsed.hostname === "drive.usercontent.google.com" && parsed.pathname === "/download") {
+            return "volume.nii.gz";
+        }
 
+        if (isGoogleDriveApiMediaUrl(parsed)) {
+            return "volume.nii.gz";
+        }
+    } catch (error) {
+        return "";
+    }
 
-//         // check if there is already a volume in the scene,
-//         // then this is likely an overlay
-//         if (VOLUMELOADED) {
+    return "";
+}
 
-//             console.log('2nd volume', filename);
+function isNvdUrl(url, fileName) {
+    return /\.nvd$/i.test(fileName || url.split("?")[0]);
+}
 
-//         }
+function hasKnownNiiVueExtension(fileName) {
+    return /\.(nvd|nii|nii\.gz|nrrd|mif|mih|mgh|mgz|mhd|v\.gz|src\.gz|sz|obj|vtk|stl|ply|gii|x3d|wrl|mz3|off|trk|tck|trx|tsf|tt\.gz|niml\.tract)$/i.test(fileName);
+}
 
-//         if (nv.isMeshExt(filename)) {
-//             MESHLOADED = true;
-//         } else {
-//             VOLUMELOADED = true;
-//         }
+function isGoogleDriveApiMediaUrl(parsedUrl) {
+    return parsedUrl.hostname === "www.googleapis.com" &&
+        /^\/drive\/v3\/files\/[^/]+$/.test(parsedUrl.pathname) &&
+        parsedUrl.searchParams.get("alt") === "media";
+}
 
-//         // any other file
-//         nv.loadFromFile(file); 
-//       }
-        
-//     }));
+async function loadFiles(files, options = {}) {
 
+    var nv = window.nv;
 
-//     if (nvdoc) {
+    if (!files || files.length === 0) {
+        return;
+    }
 
-//         await nv.loadDocument(nvdoc);
-//         console.log('Loaded scene!');
-//     }
-        
+    console.log('loading files', files);
 
+    // SORT DATA BY SIZE, LARGE FILES FIRST
+    files = Array.from(files);
 
-//     showViewer();
-    
-// }
+    const sortedFiles = files.sort((a, b) => b.size - a.size);
+    const primaryShareFile = sortedFiles.find((file) => isNiftiFile(file));
+
+    if (!options.received) {
+        shareController.setLocalFile(primaryShareFile || null);
+    }
+
+    let nvdoc = null;
+
+    //
+    // LOAD DATA
+    //
+    for (const file of sortedFiles) {
+
+      const filename = file.name.toLowerCase();
+
+      if (filename.endsWith('.nvd')) {
+        // this is a saved scene
+        nvdoc = await niivue.NVDocument.loadFromFile(file);
+      } else {
+        await nv.loadFromFile(file);
+      }
+    }
+
+    if (nvdoc) {
+        await nv.loadDocument(nvdoc);
+        console.log('Loaded scene!');
+    }
+
+    showViewer();
+}
+
+function isNiftiFile(file) {
+    return file && /\.nii(\.gz)?$/i.test(file.name);
+}
 
 function showViewer() {
     //
@@ -231,3 +314,4 @@ function showViewer() {
 
 window.loadUrl = loadUrl;
 window.loadExample = loadExample;
+window.loadFiles = loadFiles;

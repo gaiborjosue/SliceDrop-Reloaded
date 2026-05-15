@@ -25,6 +25,13 @@
 # all .log files
 *.log
 
+# Node
+node_modules/
+
+# local environment files
+.env
+.env.local
+
 # nfs
 *.nfs*
 

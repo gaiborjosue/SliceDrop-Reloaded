@@ -75,6 +75,55 @@
   -khtml-border-top-right-radius: 2px;	
 }
 
+#volumeTab {
+	border: 0;
+	box-sizing: border-box;
+	height: 214px;
+	overflow: hidden;
+	position: relative;
+}
+
+#volume .menu {
+	border: 1px solid #AFAFAF;
+	box-sizing: border-box;
+}
+
+#volume .menu,
+#volume .tabbox {
+	height: 230px;
+}
+
+#volumeTab #modes {
+	width: 130px !important;
+}
+
+#volumeTab #colors {
+	float: none !important;
+	left: 148px;
+	margin-left: 0 !important;
+	position: absolute;
+	top: 10px;
+	width: 26px !important;
+}
+
+#volumeTab #opacity-label,
+#volumeTab #windowlevel-label {
+	clear: both;
+	float: left !important;
+	margin-top: 9px !important;
+	width: 62px;
+}
+
+#volumeTab #opacity-volume,
+#volumeTab #windowlevel-volume {
+	box-sizing: border-box;
+	float: left !important;
+	margin-left: 6px !important;
+	margin-top: 11px !important;
+	max-width: 106px;
+	width: 106px !important;
+}
+
 .navigation {
 	position: fixed;
 	margin: 0px;
