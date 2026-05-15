@@ -25,6 +25,7 @@ export function initSharing({ loadReceivedFile }) {
   let receiveBuffers = [];
   let receiveBytes = 0;
   let transferComplete = false;
+  let copyResetTimer = null;
 
   ui.button.addEventListener("click", () => handleShareButton());
   ui.copyButton.addEventListener("click", () => copyShareLink());
@@ -409,6 +410,7 @@ export function initSharing({ loadReceivedFile }) {
 
     try {
       await navigator.clipboard.writeText(url);
+      showCopiedState();
       setStatus("Link copied. Keep this tab open.");
     } catch (error) {
       ui.link.select();
@@ -457,6 +459,7 @@ export function initSharing({ loadReceivedFile }) {
     ui.link.classList.add("hidden");
     ui.copyButton.classList.add("hidden");
     ui.link.value = "";
+    resetCopyState();
   }
 
   function finishShareSession() {
@@ -474,6 +477,31 @@ export function initSharing({ loadReceivedFile }) {
       closePeer();
       role = null;
     }, 800);
+  }
+
+  function showCopiedState() {
+    const icon = ui.copyButton.querySelector("img");
+    if (!icon) {
+      return;
+    }
+
+    icon.src = "./gfx/check.svg";
+    ui.copyButton.classList.add("share-panel__icon-button--success");
+
+    clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(resetCopyState, 1400);
+  }
+
+  function resetCopyState() {
+    const icon = ui.copyButton.querySelector("img");
+    if (!icon) {
+      return;
+    }
+
+    clearTimeout(copyResetTimer);
+    copyResetTimer = null;
+    icon.src = "./gfx/copy.svg";
+    ui.copyButton.classList.remove("share-panel__icon-button--success");
   }
 }
 

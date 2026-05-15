@@ -486,6 +486,12 @@ body {
   cursor: pointer;
 }
 
+.share-panel__icon-button img {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
 .share-panel__icon-button:hover:not(:disabled) {
   background: #ffffff;
 }
@@ -507,6 +513,13 @@ body {
 
 .share-panel__icon-button--secondary:hover:not(:disabled) {
   background: #2a2a2a;
+}
+
+.share-panel__icon-button--success,
+.share-panel__icon-button--success:hover:not(:disabled) {
+  border-color: #5bd38c;
+  background: #12351f;
+  color: #8cf0b2;
 }
 
 .share-panel__link {
