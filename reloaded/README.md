@@ -15,7 +15,7 @@ A local-first NIfTI sharing viewer built from SliceDrop Reloaded, ES6 JavaScript
   - Volume and mesh controls
   - Color mapping and opacity controls
 - No server processing - all visualization happens client-side
-- Temporary NIfTI share links using WebRTC DataChannel transfer
+- Temporary embedded `.nvd` scene share links using WebRTC DataChannel transfer
 - Small local signaling server for room setup only
 
 ## Getting Started
@@ -34,9 +34,9 @@ The server serves static files and relays temporary WebSocket signaling messages
 ### Usage
 
 - Drag and drop supported files onto the interface
-- After loading a `.nii` or `.nii.gz` file, click `Share`
+- After loading data, click `Share`
 - Send the temporary link to another browser while keeping the sender tab open
-- The receiver opens the link and receives the file browser-to-browser
+- The receiver opens the link and receives the embedded NiiVue scene browser-to-browser
 - Open a remote file directly with `?url=<encoded-file-url>`
 - For URLs without a file extension, add `&name=scan.nii.gz`
 - Use the control panels on the left to adjust visualization parameters

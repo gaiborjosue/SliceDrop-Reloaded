@@ -1,4 +1,4 @@
-import * as niivue from "https://unpkg.com/@niivue/niivue@0.57.0/dist/index.js";
+import * as niivue from "https://unpkg.com/@niivue/niivue@0.68.2/dist/index.js";
 import "./util.js";
 import { initSharing } from "./share.js";
 
@@ -13,6 +13,7 @@ const landingpage = document.getElementById("landingContainer");
 const viewer = document.getElementById("viewerContainer");
 const shareController = initSharing({
     loadReceivedFile: (file) => loadFiles([file], { received: true }),
+    getShareFile: () => createShareDocumentFile(),
 });
 
 window.shareController = shareController;
@@ -89,6 +90,7 @@ function start() {
         nv.volumes[0].bgcolor = {r:0,g:0,b:0};
 
         showViewer();
+        shareController.setShareAvailable(true);
 
       },
       onOverlayLoaded: () => {
@@ -101,6 +103,7 @@ function start() {
         setupUi();
 
         showViewer();
+        shareController.setShareAvailable(true);
 
       },
       onLocationChange: (data) => {
@@ -141,11 +144,8 @@ async function loadUrl(url) {
     const fileName = getUrlFileName(url);
 
     if (isNvdUrl(url, fileName)) {
-
-        niivue.NVDocument.loadFromUrl(url).then((doc) => {
-            nv.loadDocument(doc);
-            window.doc = doc;
-        });
+        const doc = await loadNvdFromUrl(url);
+        await loadNvdDocument(doc);
         
     } else if (fileName) {
         await nv.loadImages([{ url, name: fileName }]);
@@ -154,6 +154,7 @@ async function loadUrl(url) {
     }
 
     showViewer();
+    shareController.setShareAvailable(true);
 
 }
 
@@ -283,15 +284,14 @@ async function loadFiles(files, options = {}) {
 
       if (filename.endsWith('.nvd')) {
         // this is a saved scene
-        nvdoc = await niivue.NVDocument.loadFromFile(file);
+        nvdoc = await loadNvdFromFile(file);
       } else {
         await nv.loadFromFile(file);
       }
     }
 
     if (nvdoc) {
-        await nv.loadDocument(nvdoc);
-        console.log('Loaded scene!');
+        await loadNvdDocument(nvdoc);
     }
 
     showViewer();
@@ -299,6 +299,98 @@ async function loadFiles(files, options = {}) {
 
 function isNiftiFile(file) {
     return file && /\.nii(\.gz)?$/i.test(file.name);
+}
+
+function createShareDocumentFile() {
+    if (!window.nv || (nv.volumes.length === 0 && nv.meshes.length === 0)) {
+        throw new Error("No scene is loaded.");
+    }
+
+    const data = nv.json();
+    const blob = new Blob([JSON.stringify(data)], {
+        type: "application/json",
+    });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    return new File([blob], `slicedrop-scene-${timestamp}.nvd`, {
+        type: "application/json",
+    });
+}
+
+async function loadNvdFromUrl(url) {
+    try {
+        return await niivue.NVDocument.loadFromUrl(url);
+    } catch (error) {
+        return loadNvdFromArrayBuffer(await fetchArrayBuffer(url), error);
+    }
+}
+
+async function loadNvdFromFile(file) {
+    try {
+        return await niivue.NVDocument.loadFromFile(file);
+    } catch (error) {
+        return loadNvdFromArrayBuffer(await file.arrayBuffer(), error);
+    }
+}
+
+async function loadNvdFromArrayBuffer(arrayBuffer, originalError) {
+    const dataString = niivue.NVUtilities.isArrayBufferCompressed(arrayBuffer)
+        ? await niivue.NVUtilities.decompressArrayBuffer(arrayBuffer)
+        : new TextDecoder().decode(arrayBuffer);
+    const data = sanitizeNvdData(JSON.parse(dataString));
+
+    console.warn("Recovered .nvd scene after sanitizing unsupported mesh data.", originalError);
+    return await niivue.NVDocument.loadFromJSON(data);
+}
+
+async function fetchArrayBuffer(url) {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch .nvd scene: ${response.status} ${response.statusText}`);
+    }
+
+    return response.arrayBuffer();
+}
+
+function sanitizeNvdData(data) {
+    if (!data || typeof data !== "object") {
+        return data;
+    }
+
+    if (!isStructuredClonePayload(data.meshesString)) {
+        delete data.meshesString;
+    }
+
+    data.imageOptionsArray = Array.isArray(data.imageOptionsArray)
+        ? data.imageOptionsArray
+        : [];
+    data.encodedImageBlobs = Array.isArray(data.encodedImageBlobs)
+        ? data.encodedImageBlobs
+        : [];
+
+    return data;
+}
+
+function isStructuredClonePayload(value) {
+    if (!value) {
+        return false;
+    }
+
+    try {
+        const parsed = typeof value === "string" ? JSON.parse(value) : value;
+        return Array.isArray(parsed) && Array.isArray(parsed[0]);
+    } catch (error) {
+        return false;
+    }
+}
+
+async function loadNvdDocument(doc) {
+    await nv.loadDocument(doc);
+    window.doc = doc;
+    showViewer();
+    shareController.setShareAvailable(true);
+    console.log("Loaded scene!");
 }
 
 function showViewer() {

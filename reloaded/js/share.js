@@ -3,7 +3,7 @@ const BUFFER_LIMIT = 4 * 1024 * 1024;
 const ENABLE_SIGNALING = true;
 const DEFAULT_SIGNALING_URL = "wss://ws.edwardgaibor.me";
 
-export function initSharing({ loadReceivedFile }) {
+export function initSharing({ loadReceivedFile, getShareFile }) {
   const ui = {
     panel: document.getElementById("sharePanel"),
     popover: document.getElementById("sharePopover"),
@@ -16,6 +16,7 @@ export function initSharing({ loadReceivedFile }) {
   };
 
   let localFile = null;
+  let shareAvailable = false;
   let role = null;
   let roomId = getRoomIdFromLocation();
   let ws = null;
@@ -49,11 +50,12 @@ export function initSharing({ loadReceivedFile }) {
 
   function setLocalFile(file) {
     localFile = file;
+    shareAvailable = Boolean(file);
     transferComplete = false;
     resetProgress();
     resetLink();
 
-    if (!file) {
+    if (!shareAvailable) {
       hidePanel();
       ui.button.disabled = true;
       setStatus("Drop a .nii or .nii.gz file to share.");
@@ -64,8 +66,25 @@ export function initSharing({ loadReceivedFile }) {
     collapsePopover();
     ui.button.disabled = !ENABLE_SIGNALING;
     setStatus(ENABLE_SIGNALING
-      ? `Ready: ${file.name}`
-      : `${file.name} loaded locally. Sharing is temporarily disabled.`);
+      ? "Ready to share scene."
+      : "Scene loaded locally. Sharing is temporarily disabled.");
+  }
+
+  function setShareAvailable(available) {
+    shareAvailable = Boolean(available);
+
+    if (!shareAvailable) {
+      hidePanel();
+      ui.button.disabled = true;
+      return;
+    }
+
+    showPanel();
+    collapsePopover();
+    ui.button.disabled = !ENABLE_SIGNALING;
+    setStatus(ENABLE_SIGNALING
+      ? "Ready to share scene."
+      : "Scene loaded locally. Sharing is temporarily disabled.");
   }
 
   function handleShareButton() {
@@ -92,8 +111,8 @@ export function initSharing({ loadReceivedFile }) {
       return;
     }
 
-    if (!localFile) {
-      setStatus("Drop a .nii or .nii.gz file first.");
+    if (!shareAvailable) {
+      setStatus("Load a scene first.");
       return;
     }
 
@@ -251,27 +270,40 @@ export function initSharing({ loadReceivedFile }) {
   }
 
   async function sendFile() {
-    if (!localFile || !dc || dc.readyState !== "open") {
+    if (!dc || dc.readyState !== "open") {
       return;
+    }
+
+    let fileToSend;
+    try {
+      setStatus("Packaging scene...");
+      fileToSend = await Promise.resolve(getShareFile());
+    } catch (error) {
+      if (!localFile) {
+        setStatus(`Could not package scene: ${error.message}`);
+        return;
+      }
+
+      fileToSend = localFile;
     }
 
     dc.send(JSON.stringify({
       type: "meta",
-      name: localFile.name,
-      size: localFile.size,
-      mimeType: localFile.type || "application/octet-stream",
+      name: fileToSend.name,
+      size: fileToSend.size,
+      mimeType: fileToSend.type || "application/octet-stream",
     }));
 
-    setStatus(`Sending ${localFile.name}...`);
+    setStatus(`Sending ${fileToSend.name}...`);
     setProgress(0);
 
     let offset = 0;
-    while (offset < localFile.size && dc.readyState === "open") {
+    while (offset < fileToSend.size && dc.readyState === "open") {
       await waitForBuffer();
-      const chunk = await localFile.slice(offset, offset + CHUNK_SIZE).arrayBuffer();
+      const chunk = await fileToSend.slice(offset, offset + CHUNK_SIZE).arrayBuffer();
       dc.send(chunk);
       offset += chunk.byteLength;
-      setProgress(offset / localFile.size);
+      setProgress(offset / fileToSend.size);
     }
 
     if (dc.readyState === "open") {
@@ -420,6 +452,7 @@ export function initSharing({ loadReceivedFile }) {
 
   return {
     setLocalFile,
+    setShareAvailable,
   };
 
   function showPanel() {
@@ -467,7 +500,7 @@ export function initSharing({ loadReceivedFile }) {
       collapsePopover();
       resetProgress();
       resetLink();
-      ui.button.disabled = !localFile || !ENABLE_SIGNALING;
+      ui.button.disabled = !shareAvailable || !ENABLE_SIGNALING;
 
       if (ws) {
         ws.close();
