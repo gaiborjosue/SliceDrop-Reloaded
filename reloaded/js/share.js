@@ -1,7 +1,9 @@
+import { connect as connectSocketChannel } from "https://esm.sh/itty-sockets@0.9.3";
+
 const CHUNK_SIZE = 64 * 1024;
 const BUFFER_LIMIT = 4 * 1024 * 1024;
 const ENABLE_SIGNALING = true;
-const DEFAULT_SIGNALING_URL = "wss://ws.edwardgaibor.me";
+const CHANNEL_PREFIX = "slicedrop-reloaded";
 
 export function initSharing({ loadReceivedFile, getShareFile }) {
   const ui = {
@@ -19,7 +21,9 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
   let shareAvailable = false;
   let role = null;
   let roomId = getRoomIdFromLocation();
-  let ws = null;
+  let signalingChannel = null;
+  let peerAnnounced = false;
+  const clientId = createRoomId();
   let pc = null;
   let dc = null;
   let receiveMeta = null;
@@ -42,7 +46,9 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
 
     if (ENABLE_SIGNALING) {
       setStatus("Waiting for sender...");
-      connectSignaling().then(() => sendSignal({ type: "join", roomId }));
+      connectSignaling().catch((error) => {
+        setStatus(`Could not connect to signaling relay: ${error.message}`);
+      });
     } else {
       setStatus("Share links are temporarily disabled. Drop a local file to view it.");
     }
@@ -117,6 +123,8 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
     }
 
     role = "sender";
+    roomId = createRoomId();
+    peerAnnounced = false;
     transferComplete = false;
     resetProgress();
     ui.button.disabled = true;
@@ -125,52 +133,83 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
 
     try {
       await connectSignaling();
-      sendSignal({ type: "create" });
-    } catch (error) {
-      ui.button.disabled = false;
-      setStatus(`Could not connect to signaling server: ${error.message}`);
-    }
-  }
-
-  function connectSignaling() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve, reject) => {
-      ws = new WebSocket(getSignalingUrl());
-
-      ws.addEventListener("open", resolve, { once: true });
-      ws.addEventListener("error", () => reject(new Error("WebSocket connection failed")), { once: true });
-      ws.addEventListener("message", (event) => handleSignalingMessage(JSON.parse(event.data)));
-      ws.addEventListener("close", () => {
-        if (role === "sender" && roomId) {
-          ui.button.disabled = false;
-        }
-      });
-    });
-  }
-
-  async function handleSignalingMessage(message) {
-    if (message.type === "created") {
-      roomId = message.roomId;
       const url = makeShareUrl(roomId);
       ui.link.value = url;
       ui.link.classList.remove("hidden");
       ui.copyButton.classList.remove("hidden");
       openPopover();
       setStatus("Link ready. Keep this tab open.");
+    } catch (error) {
+      ui.button.disabled = false;
+      setStatus(`Could not connect to signaling relay: ${error.message}`);
+    }
+  }
+
+  function connectSignaling() {
+    if (signalingChannel) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      if (!roomId) {
+        reject(new Error("Missing share room."));
+        return;
+      }
+
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          closeSignaling({ announce: false });
+          reject(new Error("Timed out connecting to relay"));
+        }
+      }, 10000);
+
+      signalingChannel = connectSocketChannel(getChannelName(roomId), {
+        as: `${role}-${clientId}`,
+      });
+
+      signalingChannel
+        .on("open", () => {
+          settled = true;
+          clearTimeout(timeout);
+          announcePresence();
+          resolve();
+        })
+        .on("hello", (event) => handleRelayMessage(event))
+        .on("signal", (event) => handleRelayMessage(event))
+        .on("bye", (event) => handleRelayMessage(event))
+        .on("close", () => {
+          if (role === "sender" && roomId) {
+            ui.button.disabled = false;
+          }
+        });
+    });
+  }
+
+  async function handleSignalingMessage(message) {
+    if (message.type === "hello") {
+      if (role === "receiver" && message.role === "sender") {
+        setStatus("Connected to sender. Waiting for file...");
+        sendSignal({ type: "hello" });
+      }
+
+      if (role === "sender" && message.role === "receiver" && !peerAnnounced) {
+        peerAnnounced = true;
+        setStatus("Receiver joined. Starting peer connection...");
+        await createPeer(true);
+      }
+
       return;
     }
 
-    if (message.type === "joined") {
-      setStatus("Connected to signaling room. Waiting for file...");
-      return;
-    }
+    if (message.type === "bye") {
+      if (transferComplete) {
+        return;
+      }
 
-    if (message.type === "peer-joined") {
-      setStatus("Receiver joined. Starting peer connection...");
-      await createPeer(true);
+      setStatus(role === "sender" ? "Receiver disconnected." : "Sender disconnected.");
+      closePeer();
       return;
     }
 
@@ -363,7 +402,12 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
           transferComplete = true;
           sendDataChannelMessage({ type: "received" });
           setStatus(`Loaded ${receiveMeta.name}.`);
-          setTimeout(() => hidePanel({ force: true }), 800);
+          setTimeout(() => {
+            hidePanel({ force: true });
+            closeSignaling();
+            closePeer();
+            role = null;
+          }, 800);
         })
         .catch((error) => setStatus(`Could not load ${receiveMeta.name}: ${error.message}`));
       setProgress(1);
@@ -381,8 +425,13 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
   }
 
   function sendSignal(message) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+    if (signalingChannel) {
+      signalingChannel.send({
+        ...message,
+        senderId: clientId,
+        role,
+        roomId,
+      });
     }
   }
 
@@ -499,15 +548,12 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
     setTimeout(() => {
       collapsePopover();
       resetProgress();
-      resetLink();
       ui.button.disabled = !shareAvailable || !ENABLE_SIGNALING;
 
-      if (ws) {
-        ws.close();
-        ws = null;
-      }
-
+      closeSignaling();
+      resetLink();
       closePeer();
+      peerAnnounced = false;
       role = null;
     }, 800);
   }
@@ -536,18 +582,44 @@ export function initSharing({ loadReceivedFile, getShareFile }) {
     icon.src = "./gfx/copy.svg";
     ui.copyButton.classList.remove("share-panel__icon-button--success");
   }
-}
 
-function getSignalingUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const configuredUrl = params.get("signal") || window.SLICEDROP_SIGNALING_URL || DEFAULT_SIGNALING_URL;
+  function closeSignaling(options = {}) {
+    const { announce = true } = options;
 
-  if (configuredUrl) {
-    return configuredUrl;
+    if (!signalingChannel) {
+      return;
+    }
+
+    if (announce) {
+      sendSignal({ type: "bye" });
+    }
+
+    signalingChannel.close();
+    signalingChannel = null;
   }
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}`;
+  function handleRelayMessage(event) {
+    const message = event && typeof event.message === "object"
+      ? event.message
+      : event;
+
+    if (!message || message.senderId === undefined || message.senderId === clientId) {
+      return;
+    }
+
+    if (message.roomId !== roomId) {
+      return;
+    }
+
+    handleSignalingMessage(message).catch((error) => {
+      console.error("Failed to handle signaling message", error);
+    });
+  }
+
+  function announcePresence() {
+    sendSignal({ type: "hello" });
+    setTimeout(() => sendSignal({ type: "hello" }), 750);
+  }
 }
 
 function getRoomIdFromLocation() {
@@ -563,14 +635,27 @@ function getRoomIdFromLocation() {
 
 function makeShareUrl(roomId) {
   const url = new URL(window.location.href);
-  const signal = url.searchParams.get("signal");
   url.search = "";
   url.searchParams.set("room", roomId);
-
-  if (signal) {
-    url.searchParams.set("signal", signal);
-  }
-
   url.hash = "";
   return url.toString();
+}
+
+function getChannelName(roomId) {
+  return `${CHANNEL_PREFIX}:${roomId}`;
+}
+
+function createRoomId() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }

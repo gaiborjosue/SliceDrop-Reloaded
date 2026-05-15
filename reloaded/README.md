@@ -16,20 +16,20 @@ A local-first NIfTI sharing viewer built from SliceDrop Reloaded, ES6 JavaScript
   - Color mapping and opacity controls
 - No server processing - all visualization happens client-side
 - Temporary embedded `.nvd` scene share links using WebRTC DataChannel transfer
-- Small local signaling server for room setup only
+- Serverless signaling through itty-sockets for WebRTC room setup only
 
 ## Getting Started
 
 ### Local Development
 
 1. Clone this repository
-2. Run the sharing server from this directory:
+2. Serve this directory with any static file server:
    ```
-   npm start
+   npx http-server . -p 8080
    ```
 3. Open your browser to `http://localhost:8080`
 
-The server serves static files and relays temporary WebSocket signaling messages. It does not store or process NIfTI files.
+The viewer is static-host friendly, including GitHub Pages. itty-sockets relays temporary WebRTC signaling messages only; the `.nvd` scene transfer still happens browser-to-browser over WebRTC DataChannel.
 
 ### Usage
 
@@ -61,4 +61,3 @@ http://localhost:8080/?url=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownlo
   - `utils.js` - Utility functions
 - `images/` - UI assets
 - `matcaps/` - Materials for 3D rendering
-- `server.js` - Static file server and WebSocket signaling rooms
