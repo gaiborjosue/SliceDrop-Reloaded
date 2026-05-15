@@ -24,6 +24,7 @@ export function initSharing({ loadReceivedFile }) {
   let receiveMeta = null;
   let receiveBuffers = [];
   let receiveBytes = 0;
+  let transferComplete = false;
 
   ui.button.addEventListener("click", () => handleShareButton());
   ui.copyButton.addEventListener("click", () => copyShareLink());
@@ -47,6 +48,7 @@ export function initSharing({ loadReceivedFile }) {
 
   function setLocalFile(file) {
     localFile = file;
+    transferComplete = false;
     resetProgress();
     resetLink();
 
@@ -95,6 +97,7 @@ export function initSharing({ loadReceivedFile }) {
     }
 
     role = "sender";
+    transferComplete = false;
     resetProgress();
     ui.button.disabled = true;
     openPopover();
@@ -152,6 +155,10 @@ export function initSharing({ loadReceivedFile }) {
     }
 
     if (message.type === "peer-left") {
+      if (transferComplete) {
+        return;
+      }
+
       setStatus(role === "sender" ? "Receiver disconnected." : "Sender disconnected.");
       closePeer();
       return;
@@ -185,7 +192,7 @@ export function initSharing({ loadReceivedFile }) {
     pc.addEventListener("connectionstatechange", () => {
       if (pc.connectionState === "connected") {
         setStatus(role === "sender" ? "Peer connected. Sending file..." : "Peer connected. Receiving file...");
-      } else if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
+      } else if (!transferComplete && ["failed", "closed", "disconnected"].includes(pc.connectionState)) {
         setStatus("Peer connection ended.");
       }
     });
@@ -268,9 +275,9 @@ export function initSharing({ loadReceivedFile }) {
 
     if (dc.readyState === "open") {
       dc.send(JSON.stringify({ type: "done" }));
-      setStatus("Transfer complete.");
+      await waitForDrain();
+      setStatus("Transfer sent. Waiting for receiver...");
       setProgress(1);
-      finishShareSession();
     }
   }
 
@@ -290,15 +297,29 @@ export function initSharing({ loadReceivedFile }) {
   }
 
   function handleControlMessage(message) {
+    if (message.type === "received" && role === "sender") {
+      transferComplete = true;
+      setStatus("Transfer complete.");
+      setProgress(1);
+      finishShareSession();
+      return;
+    }
+
     if (message.type === "meta") {
       receiveMeta = message;
       receiveBuffers = [];
       receiveBytes = 0;
+      transferComplete = false;
       setStatus(`Receiving ${message.name}...`);
       setProgress(0);
     }
 
     if (message.type === "done" && receiveMeta) {
+      if (receiveBytes !== receiveMeta.size) {
+        setStatus(`Transfer incomplete (${receiveBytes} of ${receiveMeta.size} bytes).`);
+        return;
+      }
+
       const file = new File(receiveBuffers, receiveMeta.name, {
         type: receiveMeta.mimeType || "application/octet-stream",
       });
@@ -306,6 +327,8 @@ export function initSharing({ loadReceivedFile }) {
       setStatus(`Loading ${receiveMeta.name}...`);
       Promise.resolve(loadReceivedFile(file))
         .then(() => {
+          transferComplete = true;
+          sendDataChannelMessage({ type: "received" });
           setStatus(`Loaded ${receiveMeta.name}.`);
           setTimeout(() => hidePanel({ force: true }), 800);
         })
@@ -328,6 +351,28 @@ export function initSharing({ loadReceivedFile }) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     }
+  }
+
+  function sendDataChannelMessage(message) {
+    if (dc && dc.readyState === "open") {
+      dc.send(JSON.stringify(message));
+    }
+  }
+
+  function waitForDrain() {
+    if (!dc || dc.readyState !== "open" || dc.bufferedAmount === 0) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      const timer = setInterval(() => {
+        if (!dc || dc.readyState !== "open" || dc.bufferedAmount === 0 || Date.now() - startedAt > 30000) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 50);
+    });
   }
 
   function closePeer() {
