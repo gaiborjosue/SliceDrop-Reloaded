@@ -1,6 +1,7 @@
 const CHUNK_SIZE = 64 * 1024;
 const BUFFER_LIMIT = 4 * 1024 * 1024;
 const ENABLE_SIGNALING = true;
+const DEFAULT_SIGNALING_URL = "wss://ws.edwardgaibor.me";
 
 export function initSharing({ loadReceivedFile }) {
   const ui = {
@@ -433,7 +434,7 @@ export function initSharing({ loadReceivedFile }) {
 
 function getSignalingUrl() {
   const params = new URLSearchParams(window.location.search);
-  const configuredUrl = params.get("signal") || window.SLICEDROP_SIGNALING_URL;
+  const configuredUrl = params.get("signal") || window.SLICEDROP_SIGNALING_URL || DEFAULT_SIGNALING_URL;
 
   if (configuredUrl) {
     return configuredUrl;
