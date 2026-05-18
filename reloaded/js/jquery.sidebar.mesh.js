@@ -40,12 +40,12 @@ jQuery(function() {
     letterCase: 'uppercase',
     change: meshColor
   });
-  
+
   jQuery('#scalarsMinColor').miniColors({
     letterCase: 'uppercase',
     change: scalarsMinColor
   });
-  
+
   jQuery('#scalarsMaxColor').miniColors({
     letterCase: 'uppercase',
     change: scalarsMaxColor

@@ -30,6 +30,7 @@
 var selectedVolumeIndex = 0;
 var selectedMeshIndex = 0;
 var selectedMeshLayerIndex = 0;
+var suppressMeshLayerColorUpdate = false;
 
 /**
  * Setup all UI elements once the loading was completed.
@@ -428,6 +429,7 @@ function refreshMeshLayerControls(mesh) {
     }));
     selector.prop('disabled', true);
     jQuery("#threshold-scalars").dragslider("option", "disabled", true);
+    setMeshLayerColorControlsEnabled(false);
     return;
   }
 
@@ -447,10 +449,31 @@ function refreshMeshLayerControls(mesh) {
   selector.val(String(selectedMeshLayerIndex));
 
   var range = getMeshLayerRange(layers[selectedMeshLayerIndex]);
+  refreshMeshLayerColorControls(layers[selectedMeshLayerIndex]);
   jQuery("#threshold-scalars").dragslider("option", "disabled", false);
   jQuery("#threshold-scalars").dragslider("option", "min", range.min);
   jQuery("#threshold-scalars").dragslider("option", "max", range.max);
   jQuery("#threshold-scalars").dragslider("option", "values", [range.calMin, range.calMax]);
+
+}
+
+function refreshMeshLayerColorControls(layer) {
+
+  var minColor = layer._sliceDropMinColor || {r: 0, g: 255, b: 0};
+  var maxColor = layer._sliceDropMaxColor || {r: 255, g: 0, b: 0};
+
+  suppressMeshLayerColorUpdate = true;
+  jQuery('#scalarsMinColor').miniColors('value', colorToHex(minColor));
+  jQuery('#scalarsMaxColor').miniColors('value', colorToHex(maxColor));
+  suppressMeshLayerColorUpdate = false;
+  setMeshLayerColorControlsEnabled(true);
+
+}
+
+function setMeshLayerColorControlsEnabled(enabled) {
+
+  jQuery('#scalarsMinColor').prop('disabled', !enabled);
+  jQuery('#scalarsMaxColor').prop('disabled', !enabled);
 
 }
 
@@ -853,13 +876,105 @@ function thresholdScalars(event, ui) {
 
 function scalarsMinColor(hex, rgb) {
 
-  // NiiVue mesh layers use colormap names/LUTs, not XTK-style minColor.
+  updateMeshLayerCustomColormap('min', rgb);
 
 }
 
 function scalarsMaxColor(hex, rgb) {
 
-  // NiiVue mesh layers use colormap names/LUTs, not XTK-style maxColor.
+  updateMeshLayerCustomColormap('max', rgb);
+
+}
+
+function updateMeshLayerCustomColormap(endpoint, rgb) {
+
+  if (suppressMeshLayerColorUpdate) {
+    return;
+  }
+
+  var mesh = getSelectedMesh();
+  var layer = getSelectedMeshLayer();
+
+  if (!mesh || !layer || !rgb) {
+    return;
+  }
+
+  if (endpoint === 'min') {
+    layer._sliceDropMinColor = rgb;
+  } else {
+    layer._sliceDropMaxColor = rgb;
+  }
+
+  var minColor = layer._sliceDropMinColor || hexToRgb(jQuery('#scalarsMinColor').val()) || {r: 0, g: 255, b: 0};
+  var maxColor = layer._sliceDropMaxColor || hexToRgb(jQuery('#scalarsMaxColor').val()) || {r: 255, g: 0, b: 0};
+  var colormapKey = [
+    'SliceDropMeshLayer',
+    mesh.id || selectedMeshIndex,
+    selectedMeshLayerIndex,
+    colorToHex(minColor).replace('#', ''),
+    colorToHex(maxColor).replace('#', '')
+  ].join('-');
+
+  nv.addColormap(colormapKey, generateColorMap(minColor, maxColor));
+  nv.setMeshLayerProperty(mesh.id, selectedMeshLayerIndex, 'colormap', colormapKey);
+  nv.updateGLVolume();
+
+}
+
+function colorToHex(color) {
+
+  if (!color) {
+    return '#000000';
+  }
+
+  var r = normalizeColorComponent(color.r ?? color[0]);
+  var g = normalizeColorComponent(color.g ?? color[1]);
+  var b = normalizeColorComponent(color.b ?? color[2]);
+
+  return '#' + componentToHex(r) + componentToHex(g) + componentToHex(b);
+
+}
+
+function hexToRgb(hex) {
+
+  if (!hex) {
+    return null;
+  }
+
+  var value = hex.replace('#', '');
+
+  if (value.length !== 6) {
+    return null;
+  }
+
+  return {
+    r: parseInt(value.substring(0, 2), 16),
+    g: parseInt(value.substring(2, 4), 16),
+    b: parseInt(value.substring(4, 6), 16)
+  };
+
+}
+
+function normalizeColorComponent(value) {
+
+  var number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+
+  if (number >= 0 && number <= 1) {
+    number = number * 255;
+  }
+
+  return Math.max(0, Math.min(255, Math.round(number)));
+
+}
+
+function componentToHex(value) {
+
+  var hex = normalizeColorComponent(value).toString(16);
+  return hex.length === 1 ? '0' + hex : hex;
 
 }
 
