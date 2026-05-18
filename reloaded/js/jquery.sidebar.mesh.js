@@ -35,7 +35,7 @@ jQuery(function() {
 
     toggleMeshVisibility();
   });
-  
+
   jQuery('#meshColor').miniColors({
     letterCase: 'uppercase',
     change: meshColor
@@ -51,10 +51,15 @@ jQuery(function() {
     change: scalarsMaxColor
   });
   
-  // jQuery("#opacity-mesh").slider({
-  //   slide: opacityMesh
-  // });
-  // jQuery("#opacity-mesh").width(140);
+  jQuery("#opacity-mesh").slider({
+    min: 0,
+    max: 100,
+    value: 100,
+    slide: opacityMesh
+  });
+  jQuery("#opacity-mesh").width(140);
+
+  jQuery('#scalars-selector').change(scalarsSelectorChanged);
   
   jQuery("#threshold-scalars").dragslider({
     range: true,

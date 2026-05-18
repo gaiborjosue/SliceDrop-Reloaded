@@ -85,12 +85,7 @@ jQuery(function() {
   // .. for volumes
   jQuery("#volumetabs").idTabs("!mouseover");
   // .. for meshes
-  jQuery(".meshtabs").bind('mouseenter', function() {
-
-    jQuery('.meshtabs').removeClass('selected');
-    jQuery(this).addClass("selected");
-    
-  });
+  jQuery(".meshtabs").off('mouseenter');
   // .. for fibers
   jQuery(".fiberstabs").bind('mouseenter', function() {
 

@@ -28,6 +28,8 @@
 */
 
 var selectedVolumeIndex = 0;
+var selectedMeshIndex = 0;
+var selectedMeshLayerIndex = 0;
 
 /**
  * Setup all UI elements once the loading was completed.
@@ -83,6 +85,7 @@ function setupUi() {
 
     // ENABLE THAT TAB
     jQuery('#volume .menu').removeClass('menuDisabled');
+    pinSidebarPanel('volume');
 
   } else {
 
@@ -113,60 +116,13 @@ function setupUi() {
 
 
   // MESH
-  if (nv.meshes.length > 0) {
-
-    for(var m in nv.meshes) {
-
-      m = nv.meshes[m];
-
-      if (typeof m.fiberLengths === 'undefined') {
-
-        // a real mesh, not fibers
-
-        jQuery('#opacity-mesh').slider("option", "value", 100);
-        // mesh.opacity = 1.0; // re-propagate
-
-        // mesh.color = [1, 1, 1];
-
-        jQuery('#mesh .menu').removeClass('menuDisabled');
-
-        // jump out
-        // TODO only one mesh supported right now
-        break;
-
-      }
-
-    }
-
-
+  if (getConfigurableMeshes().length > 0) {
+    populateMeshControls();
+    refreshMeshControls();
+    jQuery('#mesh .menu').removeClass('menuDisabled');
+    pinSidebarPanel('mesh');
   } else {
-
-    // no mesh
     jQuery('#mesh .menu').addClass('menuDisabled');
-
-  }
-
-  // SCALARS
-  // if (_data.scalars.file.length > 0) {
-  if (-1 > 0) {
-
-    var combobox = document.getElementById("scalars-selector");
-    combobox.value = 'Scalars 1';
-
-    jQuery("#threshold-scalars").dragslider("option", "disabled", false);
-    jQuery("#threshold-scalars").dragslider("option", "min",
-        mesh.scalars.min * 100);
-    jQuery("#threshold-scalars").dragslider("option", "max",
-        mesh.scalars.max * 100);
-    jQuery("#threshold-scalars").dragslider("option", "values",
-        [mesh.scalars.min * 100, mesh.scalars.max * 100]);
-
-  } else {
-
-    var combobox = document.getElementById("scalars-selector");
-    combobox.disabled = true;
-    jQuery("#threshold-scalars").dragslider("option", "disabled", true);
-
   }
 
   // FIBERS
@@ -189,6 +145,7 @@ function setupUi() {
 
 
   // FIBERS
+  var hasFibers = false;
   if (nv.meshes.length > 0) {
 
     for(var m in nv.meshes) {
@@ -198,8 +155,10 @@ function setupUi() {
       if (typeof m.fiberLengths !== 'undefined') {
 
         // Fibers!
+        hasFibers = true;
 
         jQuery('#fibers .menu').removeClass('menuDisabled');
+        pinSidebarPanel('fibers');
 
 
         var min_fiberlength = Math.min(...nv.meshes[0].fiberLengths);
@@ -220,16 +179,28 @@ function setupUi() {
     }
 
 
-  } else {
+  }
 
-    // no mesh
-    jQuery('#mesh .menu').addClass('menuDisabled');
+  if (!hasFibers) {
+
+    jQuery('#fibers .menu').addClass('menuDisabled');
 
   }
 
 
   // initialize_sharing();
 
+
+}
+
+function pinSidebarPanel(panelId) {
+
+  var item = jQuery('#' + panelId);
+  var menu = item.find('.menu');
+  var pin = item.find('.pinicon');
+
+  menu.stop().css('marginLeft', '-2px');
+  pin.removeClass('ui-icon-pin-w').addClass('ui-icon-pin-s');
 
 }
 
@@ -340,6 +311,193 @@ function refreshVolumeControls() {
       [volume.cal_min, volume.cal_max]);
 
   jQuery('#opacity-volume').slider("option", "value", Math.round((volume.opacity ?? 1) * 100));
+
+}
+
+function getConfigurableMeshes() {
+
+  if (!nv || !Array.isArray(nv.meshes)) {
+    return [];
+  }
+
+  return nv.meshes
+    .map(function(mesh, index) {
+      return { mesh: mesh, index: index };
+    })
+    .filter(function(entry) {
+      return typeof entry.mesh.fiberLengths === 'undefined';
+    });
+
+}
+
+function getSelectedMesh() {
+
+  var meshes = getConfigurableMeshes();
+
+  if (meshes.length === 0) {
+    return null;
+  }
+
+  var selected = meshes.find(function(entry) {
+    return entry.index === selectedMeshIndex;
+  });
+
+  if (!selected) {
+    selected = meshes[0];
+    selectedMeshIndex = selected.index;
+  }
+
+  return selected.mesh;
+
+}
+
+function getSelectedMeshLayer() {
+
+  var mesh = getSelectedMesh();
+
+  if (!mesh || !Array.isArray(mesh.layers) || mesh.layers.length === 0) {
+    return null;
+  }
+
+  selectedMeshLayerIndex = Math.min(
+    Math.max(selectedMeshLayerIndex, 0),
+    mesh.layers.length - 1
+  );
+
+  return mesh.layers[selectedMeshLayerIndex];
+
+}
+
+function populateMeshControls() {
+
+  var meshes = getConfigurableMeshes();
+  var meshContent = jQuery('#mesh1');
+
+  jQuery('#mesh .meshtabs').remove();
+
+  if (!meshes.some(function(entry) {
+    return entry.index === selectedMeshIndex;
+  })) {
+    selectedMeshIndex = meshes[0].index;
+  }
+
+  for (var i = 0; i < meshes.length; i++) {
+    var entry = meshes[i];
+    var tab = jQuery('<a>', {
+      class: 'meshtabs' + (entry.index === selectedMeshIndex ? ' selected' : ''),
+      text: 'Mesh ' + (i + 1)
+    });
+
+    tab.attr('data-mesh-index', entry.index);
+    tab.css('left', (i * 57) + 'px');
+    tab.insertBefore(meshContent);
+  }
+
+  bindMeshTabs();
+
+}
+
+function refreshMeshControls() {
+
+  var mesh = getSelectedMesh();
+
+  if (!mesh) {
+    return;
+  }
+
+  jQuery('#mesh .meshtabs').removeClass('selected');
+  jQuery('#mesh .meshtabs[data-mesh-index="' + selectedMeshIndex + '"]').addClass('selected');
+  jQuery('#opacity-mesh').slider("option", "disabled", false);
+  jQuery('#opacity-mesh').slider("option", "value", Math.round((mesh.opacity ?? 1) * 100));
+
+  refreshMeshLayerControls(mesh);
+
+}
+
+function refreshMeshLayerControls(mesh) {
+
+  var selector = jQuery('#scalars-selector');
+  var layers = Array.isArray(mesh.layers) ? mesh.layers : [];
+
+  selector.empty();
+
+  if (layers.length === 0) {
+    selector.append(jQuery('<option>', {
+      value: '',
+      text: 'No layers'
+    }));
+    selector.prop('disabled', true);
+    jQuery("#threshold-scalars").dragslider("option", "disabled", true);
+    return;
+  }
+
+  selectedMeshLayerIndex = Math.min(selectedMeshLayerIndex, layers.length - 1);
+
+  for (var i = 0; i < layers.length; i++) {
+    var layer = layers[i];
+    var label = layer.name || layer.url || ('Layer ' + (i + 1));
+
+    selector.append(jQuery('<option>', {
+      value: i,
+      text: (i + 1) + '. ' + label
+    }));
+  }
+
+  selector.prop('disabled', false);
+  selector.val(String(selectedMeshLayerIndex));
+
+  var range = getMeshLayerRange(layers[selectedMeshLayerIndex]);
+  jQuery("#threshold-scalars").dragslider("option", "disabled", false);
+  jQuery("#threshold-scalars").dragslider("option", "min", range.min);
+  jQuery("#threshold-scalars").dragslider("option", "max", range.max);
+  jQuery("#threshold-scalars").dragslider("option", "values", [range.calMin, range.calMax]);
+
+}
+
+function getMeshLayerRange(layer) {
+
+  var min = Number.isFinite(layer.global_min) ? layer.global_min : layer.cal_min;
+  var max = Number.isFinite(layer.global_max) ? layer.global_max : layer.cal_max;
+
+  if (!Number.isFinite(min)) {
+    min = 0;
+  }
+
+  if (!Number.isFinite(max)) {
+    max = 1;
+  }
+
+  if (min === max) {
+    max = min + 1;
+  }
+
+  var calMin = Number.isFinite(layer.cal_min) ? layer.cal_min : min;
+  var calMax = Number.isFinite(layer.cal_max) ? layer.cal_max : max;
+
+  return {
+    min: min,
+    max: max,
+    calMin: Math.max(min, Math.min(max, calMin)),
+    calMax: Math.max(min, Math.min(max, calMax))
+  };
+
+}
+
+function bindMeshTabs() {
+
+  jQuery('#mesh .meshtabs').off('click.meshselect');
+  jQuery('#mesh .meshtabs').on('click.meshselect', function() {
+    selectedMeshIndex = Number(jQuery(this).attr('data-mesh-index')) || 0;
+    selectedMeshLayerIndex = 0;
+    refreshMeshControls();
+  });
+
+}
+
+function scalarsSelectorChanged() {
+
+  selectedMeshLayerIndex = Number(jQuery('#scalars-selector').val()) || 0;
+  refreshMeshControls();
 
 }
 
@@ -644,108 +802,64 @@ function toggleLabelmapVisibility() {
 //
 function toggleMeshVisibility() {
 
-  // if (!mesh) {
-  //   return;
-  // }
+  var mesh = getSelectedMesh();
 
-  nv.meshes[0].visible = !nv.meshes[0].visible;
-  nv.updateGLVolume();
+  if (!mesh) {
+    return;
+  }
 
-  // if (RT.linked) {
-
-  //   clearTimeout(RT._updater);
-  //   RT._updater = setTimeout(RT.pushMesh.bind(RT, 'visible', mesh.visible), 150);
-
-  // }
+  nv.setMeshProperty(mesh.id, 'visible', !mesh.visible);
 
 }
 
 function meshColor(hex, rgb) {
 
-
-  nv.setMeshProperty(nv.meshes[0].id, 'rgba255', [rgb.r, rgb.g, rgb.b, 255]);
-
-  // if (!mesh) {
-  //   return;
-  // }
-
-  // mesh.color = [rgb.r / 255, rgb.g / 255, rgb.b / 255];
-
-  // if (RT.linked) {
-
-  //   clearTimeout(RT._updater);
-  //   RT._updater = setTimeout(RT.pushMesh.bind(RT, 'color', mesh.color), 150);
-
-  // }
-}
-
-function opacityMesh(event, ui) {
-
-  // if (!mesh) {
-  //   return;
-  // }
-
-  // mesh.opacity = ui.value / 100;
-
-  // if (RT.linked) {
-
-  //   clearTimeout(RT._updater);
-  //   RT._updater = setTimeout(RT.pushMesh.bind(RT, 'opacity', mesh.opacity), 150);
-
-  // }
-}
-
-function thresholdScalars(event, ui) {
+  var mesh = getSelectedMesh();
 
   if (!mesh) {
     return;
   }
 
-  mesh.scalars.lowerThreshold = ui.values[0] / 100;
-  mesh.scalars.upperThreshold = ui.values[1] / 100;
+  var alpha = mesh.rgba255 && Number.isFinite(mesh.rgba255[3])
+    ? mesh.rgba255[3]
+    : 255;
+  nv.setMeshProperty(mesh.id, 'rgba255', [rgb.r, rgb.g, rgb.b, alpha]);
+}
 
-  if (RT.linked) {
+function opacityMesh(event, ui) {
 
-    clearTimeout(RT._updater);
-    RT._updater = setTimeout(RT.pushScalars.bind(RT, 'lowerThreshold', mesh.scalars.lowerThreshold), 150);
-    clearTimeout(RT._updater2);
-    RT._updater2 = setTimeout(RT.pushScalars.bind(RT, 'upperThreshold', mesh.scalars.upperThreshold), 150);
+  var mesh = getSelectedMesh();
 
+  if (!mesh) {
+    return;
   }
+
+  nv.setMeshProperty(mesh.id, 'opacity', ui.value / 100);
+}
+
+function thresholdScalars(event, ui) {
+
+  var mesh = getSelectedMesh();
+  var layer = getSelectedMeshLayer();
+
+  if (!mesh || !layer) {
+    return;
+  }
+
+  nv.setMeshLayerProperty(mesh.id, selectedMeshLayerIndex, 'cal_min', ui.values[0]);
+  nv.setMeshLayerProperty(mesh.id, selectedMeshLayerIndex, 'cal_max', ui.values[1]);
 
 }
 
 function scalarsMinColor(hex, rgb) {
 
-  if (!mesh) {
-    return;
-  }
-
-  mesh.scalars.minColor = [rgb.r / 255, rgb.g / 255, rgb.b / 255];
-
-  if (RT.linked) {
-
-    clearTimeout(RT._updater);
-    RT._updater = setTimeout(RT.pushScalars.bind(RT, 'minColor', mesh.scalars.minColor), 150);
-
-  }
+  // NiiVue mesh layers use colormap names/LUTs, not XTK-style minColor.
 
 }
 
 function scalarsMaxColor(hex, rgb) {
 
-  if (!mesh) {
-    return;
-  }
-
-  mesh.scalars.maxColor = [rgb.r / 255, rgb.g / 255, rgb.b / 255];
-
-  if (RT.linked) {
-
-    clearTimeout(RT._updater);
-    RT._updater = setTimeout(RT.pushScalars.bind(RT, 'maxColor', mesh.scalars.maxColor), 150);
-
-  }
+  // NiiVue mesh layers use colormap names/LUTs, not XTK-style maxColor.
 
 }
 

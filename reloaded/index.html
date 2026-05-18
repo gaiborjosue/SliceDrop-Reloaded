@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./css/styles.css?v=20260518-share-count" />
     <link type='text/css' rel='stylesheet' href='css/xtheme/jquery.ui.css' />
     <link type='text/css' rel='stylesheet' href='css/jquery.miniColors.css' />
-    <link type='text/css' rel='stylesheet' href='css/jquery.sidebar.css' />
+    <link type='text/css' rel='stylesheet' href='css/jquery.sidebar.css?v=20260518-mesh-tab-hitbox' />
 
     <title>Slice:Drop</title>
 
@@ -17,12 +17,12 @@
     <script type='text/javascript' src='js/lib/jquery.miniColors.js'></script>
     <script type='text/javascript' src='js/lib/jquery.filestyle.js'></script>
     <script type='text/javascript' src='js/lib/jquery.idTabs.js'></script>
-    <script type='text/javascript' src='js/jquery.sidebar.js'></script>
+    <script type='text/javascript' src='js/jquery.sidebar.js?v=20260518-mesh-tab-click'></script>
     <script type='text/javascript' src='js/jquery.sidebar.volume.js'></script>
-    <script type='text/javascript' src='js/jquery.sidebar.mesh.js'></script>
+    <script type='text/javascript' src='js/jquery.sidebar.mesh.js?v=20260518-mesh-tabs'></script>
     <script type='text/javascript' src='js/jquery.sidebar.fibers.js'></script>
     <script type='text/javascript' src='js/jquery.viewer.js'></script>
-    <script type='text/javascript' src='js/x.controller.js'></script>
+    <script type='text/javascript' src='js/x.controller.js?v=20260518-mesh-tab-hitbox'></script>
 
     <script type="module" src="./js/index.js?v=20260518-default-volume-3d"></script>
 
@@ -280,7 +280,7 @@
           <div class='tabbox idTabs'>
             <div class='caption'>MESH</div>
 
-            <a class='meshtabs selected'>Mesh 1</a>
+            <a class='meshtabs selected' data-mesh-index='0'>Mesh 1</a>
             <div id='mesh1' class='tabContent'>
 
               <div id='visibility-mesh'
@@ -293,16 +293,15 @@
               <input type='hidden' id='meshColor' class='color-picker black'
                 size='6' value='#0000ff' />
 
-<!--               <div class='menuLabel' style='margin-top: 4px; float: left;'>Opacity</div>
+              <div class='menuLabel' style='margin-top: 4px; float: left;'>Opacity</div>
               <div id='opacity-mesh'
                 style='margin-left: 10px; margin-top: 4px; float: left;'></div>
- -->
+
               <div class='menuLabel'
-                style='margin-top: 4px; float: left; margin-top: 10px;'>Scalars</div>
+                style='margin-top: 4px; float: left; margin-top: 10px;'>Layer</div>
               <div id='scalars-mesh' style='width: 160px; float: left;'>
 
-                <select id='scalars-selector' style='margin-left: 6px'><option>Scalars
-                    1</option></select> <input type='hidden' class='color-picker black'
+                <select id='scalars-selector' style='margin-left: 6px'><option>No layers</option></select> <input type='hidden' class='color-picker black'
                   id='scalarsMinColor' size='6' value='#00ff00' /> <input
                   type='hidden' id='scalarsMaxColor' class='color-picker black'
                   size='6' value='#ff0000' />
@@ -310,8 +309,8 @@
 
 
 
-              <div class='menuLabel' style='margin-top: 4px; float: left;'>Scalars
-                Threshold</div>
+              <div class='menuLabel' style='margin-top: 4px; float: left;'>Layer
+                Threshold Range</div>
               <div id='threshold-scalars'
                 style='margin-left: 10px; margin-top: 4px; float: left;'></div>
 

@@ -233,6 +233,11 @@
 	cursor:pointer;
 }
 
+#mesh .meshtabs {
+	position: relative;
+	width: 47px;
+}
+
 .show-icon { width: 16px; height: 18px; background-image: url(../gfx/show.png); }
 
 .hide-icon { width: 16px; height: 18px; background-image: url(../gfx/hide.png); }
