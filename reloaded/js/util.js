@@ -74,7 +74,38 @@ function generateColorMap(color1, color2, steps = 256) {
   return cmap;
 }
 
+function rememberSliceDropCustomColormap(key, cmap) {
+  if (!key || !cmap) {
+    return;
+  }
+
+  window.sliceDropCustomColormaps = window.sliceDropCustomColormaps || {};
+  window.sliceDropCustomColormaps[key] = cmap;
+}
+
+function getSliceDropCustomColormaps() {
+  return {...(window.sliceDropCustomColormaps || {})};
+}
+
+function restoreSliceDropCustomColormaps(nv, customColormaps) {
+  if (!nv || !customColormaps || typeof customColormaps !== "object") {
+    return;
+  }
+
+  for (const [key, cmap] of Object.entries(customColormaps)) {
+    if (!key || !cmap) {
+      continue;
+    }
+
+    nv.addColormap(key, cmap);
+    rememberSliceDropCustomColormap(key, cmap);
+  }
+}
+
 
 window.generateColorMap = generateColorMap;
 window.showPaneForObject = showPaneForObject;
 window.generateColorMap = generateColorMap;
+window.rememberSliceDropCustomColormap = rememberSliceDropCustomColormap;
+window.getSliceDropCustomColormaps = getSliceDropCustomColormaps;
+window.restoreSliceDropCustomColormaps = restoreSliceDropCustomColormaps;

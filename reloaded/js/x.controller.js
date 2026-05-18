@@ -959,6 +959,9 @@ function updateColorMap() {
 
   const key = "CustomGradient-" + volume.id;
   nv.addColormap(key, cmap);
+  if (window.rememberSliceDropCustomColormap) {
+    window.rememberSliceDropCustomColormap(key, cmap);
+  }
   ensureColormapOption(key);
   nv.setColormap(volume.id, key);
   jQuery('#colormap-volume').val(key);
@@ -1100,7 +1103,12 @@ function updateMeshLayerCustomColormap(endpoint, rgb) {
     colorToHex(maxColor).replace('#', '')
   ].join('-');
 
-  nv.addColormap(colormapKey, generateColorMap(minColor, maxColor));
+  var cmap = generateColorMap(minColor, maxColor);
+
+  nv.addColormap(colormapKey, cmap);
+  if (window.rememberSliceDropCustomColormap) {
+    window.rememberSliceDropCustomColormap(colormapKey, cmap);
+  }
   nv.setMeshLayerProperty(mesh.id, selectedMeshLayerIndex, 'colormap', colormapKey);
   nv.updateGLVolume();
 

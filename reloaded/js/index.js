@@ -1,5 +1,5 @@
 import * as niivue from "https://unpkg.com/@niivue/niivue@0.68.2/dist/index.js";
-import "./util.js";
+import "./util.js?v=20260518-custom-colormaps";
 import { initSharing } from "./share.js?v=20260518-share-count";
 
 window.niivue = niivue;
@@ -152,6 +152,11 @@ async function loadExample(which) {
 
     if (which === 1) {
         await loadNiiVueTractographyExample();
+        return;
+    }
+
+    if (which === 2) {
+        await loadUrl("./gfx/example_axon.nvd");
         return;
     }
 
@@ -396,6 +401,7 @@ function createShareDocumentFile() {
         throw new Error("No scene is loaded.");
     }
 
+    syncSliceDropSceneMetadata();
     const data = nv.json();
     const blob = new Blob([JSON.stringify(data)], {
         type: "application/json",
@@ -413,6 +419,7 @@ function downloadNvdScene() {
     }
 
     const filename = createNvdFilename();
+    syncSliceDropSceneMetadata();
 
     if (typeof window.nv.saveDocument === "function") {
         window.nv.saveDocument(filename);
@@ -453,6 +460,50 @@ function createNvdFilename() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
     return `slicedrop-scene-${timestamp}.nvd`;
+}
+
+function syncSliceDropSceneMetadata() {
+    if (!window.nv || !window.nv.document) {
+        return;
+    }
+
+    const customData = parseSliceDropCustomData(window.nv.document.customData);
+    customData.sliceDropReloaded = {
+        version: 1,
+        customColormaps: window.getSliceDropCustomColormaps
+            ? window.getSliceDropCustomColormaps()
+            : {},
+    };
+    window.nv.document.customData = JSON.stringify(customData);
+}
+
+function restoreSliceDropSceneMetadata(doc) {
+    const customData = parseSliceDropCustomData(doc && doc.customData);
+    const metadata = customData.sliceDropReloaded || {};
+    const customColormaps = metadata.customColormaps || {};
+
+    if (window.restoreSliceDropCustomColormaps) {
+        window.restoreSliceDropCustomColormaps(window.nv, customColormaps);
+    }
+}
+
+function parseSliceDropCustomData(value) {
+    if (!value) {
+        return {};
+    }
+
+    if (typeof value === "object") {
+        return value;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === "object"
+            ? parsed
+            : { userCustomData: value };
+    } catch (error) {
+        return { userCustomData: value };
+    }
 }
 
 async function loadNvdFromUrl(url) {
@@ -524,6 +575,7 @@ function isStructuredClonePayload(value) {
 }
 
 async function loadNvdDocument(doc) {
+    restoreSliceDropSceneMetadata(doc);
     await nv.loadDocument(doc);
     window.doc = doc;
     showViewer();
