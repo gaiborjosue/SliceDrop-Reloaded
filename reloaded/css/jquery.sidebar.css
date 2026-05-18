@@ -76,21 +76,30 @@
 }
 
 #volumeTab {
-	border: 0;
+	border: 1px solid #AFAFAF;
 	box-sizing: border-box;
-	height: 236px;
+	height: 196px;
+	left: 0;
+	margin-top: 0;
 	overflow: hidden;
-	position: relative;
+	padding-top: 2px;
+	position: absolute;
+	top: 0;
+	width: 200px;
 }
 
 #volume .menu {
-	border: 1px solid #AFAFAF;
+	border: 0;
 	box-sizing: border-box;
 }
 
 #volume .menu,
 #volume .tabbox {
-	height: 252px;
+	height: 196px;
+}
+
+#volumetabs {
+	position: relative;
 }
 
 #volumeTab #modes {
@@ -102,7 +111,7 @@
 	left: 148px;
 	margin-left: 0 !important;
 	position: absolute;
-	top: 10px;
+	top: 2px;
 	width: 26px !important;
 }
 
@@ -128,14 +137,9 @@
 	clear: both;
 	display: grid;
 	gap: 6px;
-	grid-template-columns: 64px 100px;
+	grid-template-columns: 106px;
 	margin-top: 0;
 	padding-top: 14px;
-	width: 170px;
-}
-
-#volumeTab #volume-select-row.volume-select-row--colors-only {
-	grid-template-columns: 106px;
 	width: 106px;
 }
 
@@ -162,6 +166,19 @@
 	margin: 0 !important;
 	min-width: 0;
 	width: 100% !important;
+}
+
+#volumetabs > .volumetabs {
+	cursor: pointer;
+	position: relative;
+	width: 54px;
+	z-index: 2;
+}
+
+#volumetabs > #labelmapSwitch {
+	position: relative;
+	width: 58px;
+	z-index: 2;
 }
 
 .navigation {
@@ -219,6 +236,7 @@
   margin-top: 0px;
   right: 0px;
   top: 0px;
+  z-index: 20;
 }
 
 .pinicon {
@@ -236,6 +254,11 @@
 #mesh .meshtabs {
 	position: relative;
 	width: 47px;
+}
+
+#fibers .fiberstabs {
+	position: relative;
+	width: 53px;
 }
 
 .show-icon { width: 16px; height: 18px; background-image: url(../gfx/show.png); }

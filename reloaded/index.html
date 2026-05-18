@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0' />
 
-    <link rel="stylesheet" href="./css/styles.css?v=20260518-share-count" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260518-download-nvd" />
     <link type='text/css' rel='stylesheet' href='css/xtheme/jquery.ui.css' />
     <link type='text/css' rel='stylesheet' href='css/jquery.miniColors.css' />
-    <link type='text/css' rel='stylesheet' href='css/jquery.sidebar.css?v=20260518-mesh-layer-inline-colors' />
+    <link type='text/css' rel='stylesheet' href='css/jquery.sidebar.css?v=20260518-volume-pin-layer' />
 
     <title>Slice:Drop</title>
 
@@ -17,14 +17,14 @@
     <script type='text/javascript' src='js/lib/jquery.miniColors.js'></script>
     <script type='text/javascript' src='js/lib/jquery.filestyle.js'></script>
     <script type='text/javascript' src='js/lib/jquery.idTabs.js'></script>
-    <script type='text/javascript' src='js/jquery.sidebar.js?v=20260518-mesh-tab-click'></script>
-    <script type='text/javascript' src='js/jquery.sidebar.volume.js'></script>
-    <script type='text/javascript' src='js/jquery.sidebar.mesh.js?v=20260518-mesh-layer-inline-colors'></script>
-    <script type='text/javascript' src='js/jquery.sidebar.fibers.js'></script>
+    <script type='text/javascript' src='js/jquery.sidebar.js?v=20260518-fiber-visibility'></script>
+    <script type='text/javascript' src='js/jquery.sidebar.volume.js?v=20260518-volume-tabs'></script>
+    <script type='text/javascript' src='js/jquery.sidebar.mesh.js?v=20260518-mesh-no-shader'></script>
+    <script type='text/javascript' src='js/jquery.sidebar.fibers.js?v=20260518-fiber-coloration'></script>
     <script type='text/javascript' src='js/jquery.viewer.js'></script>
-    <script type='text/javascript' src='js/x.controller.js?v=20260518-mesh-layer-inline-colors'></script>
+    <script type='text/javascript' src='js/x.controller.js?v=20260518-volume-tabs-layout'></script>
 
-    <script type="module" src="./js/index.js?v=20260518-default-volume-3d"></script>
+    <script type="module" src="./js/index.js?v=20260518-download-nvd"></script>
 
     <link rel="icon" href="./gfx/slicedrop_logo.png" />
   </head>
@@ -40,6 +40,9 @@
         </div>
         <button id="shareButton" class="share-panel__icon-button" type="button" disabled aria-label="Share volume" title="Share volume">
           <img src="./gfx/share.svg" alt="" aria-hidden="true" />
+        </button>
+        <button id="downloadNvdButton" class="share-panel__icon-button" type="button" disabled aria-label="Download NVD scene" title="Download NVD scene">
+          <img src="./gfx/download.svg" alt="" aria-hidden="true" />
         </button>
       </div>
       <div id="sharePopover" class="share-panel__popover hidden">
@@ -78,9 +81,9 @@
             <div
               class="example-card"
               data-example="1"
-              data-caption="A 14-year-old healthy male brain. The patient was scanned using a structural MRI and a diffusion MRI to highlight connecting brain fibers. Loading time: +++"
+              data-caption="Diffusion MRI tractography with a b0 reference volume and AFQ streamline groups loaded from the NiiVue tractography demo. Loading time: ++"
             >
-              <img src="./gfx/example1.png" alt="Brain MRI Example" onclick='javascript:loadExample(1);'>
+              <img src="./gfx/example1.png?v=20260518-tractography-demo" alt="Diffusion MRI Tractography Example" onclick='javascript:loadExample(1);'>
             </div>
 
             <div
@@ -93,10 +96,10 @@
 
             <div
               class="example-card"
-              data-caption="The surface of the left hemisphere of a 2-year-old healthy brain. The scalar overlay shows the bending energy based on Curvedness. Loading time: ++"
+              data-caption="A left hemisphere cortical mesh with curvature and motor statistical overlays loaded from the NiiVue mesh statistics demo. Loading time: ++"
               data-example="3"
             >
-              <img src="./gfx/2yrold_small.png" alt="Brain Surface" />
+              <img src="./gfx/mesh.png?v=20260518-mesh-statistics-demo" alt="Mesh Statistics Example" onclick='javascript:loadExample(3);' />
             </div>
 
             <div
@@ -111,9 +114,9 @@
           <!-- Caption container -->
           <div class="caption-container">
             <p id="dynamic-caption">
-              A 14-year-old healthy male brain. The patient was scanned using a
-              structural MRI and a diffusion MRI to highlight connecting brain
-              fibers. Loading time: +++
+              Diffusion MRI tractography with a b0 reference volume and AFQ
+              streamline groups loaded from the NiiVue tractography demo.
+              Loading time: ++
             </p>
           </div>
         </div>
@@ -200,13 +203,11 @@
           </div>
 
           <div class='tabbox idTabs' id='volumetabs'>
-            <div class='caption'>VOLUME</div>
+            <div id='volumePanelCaption' class='caption'>VOLUME</div>
 
-            <a href='#volumeTab' class='selected'>Volume</a> <a
-              href='#labelmapTab' id='labelmapSwitch'
-              style='margin-left: 50px;'>Labelmap</a>
+            <a href='#volumeTab' class='volumetabs selected' data-volume-index='0'>Volume 1</a> <a
+              href='#labelmapTab' id='labelmapSwitch'>Labelmap</a>
             <div id='volumeTab' class='tabContent'>
-
 
               <div id='modes' style='width: 130px; float: left;'>
                 <div id='volumerendering'>
@@ -227,10 +228,6 @@
               </div>
 
               <div id='volume-select-row'>
-                <div id='volume-layer-group' class='volumeSelectGroup'>
-                  <label class='menuLabel' for='volume-selector'>Layer</label>
-                  <select id='volume-selector' class='volumeSelect'></select>
-                </div>
                 <div id='volume-colormap-group' class='volumeSelectGroup'>
                   <label class='menuLabel' for='colormap-volume'>Colors</label>
                   <select id='colormap-volume' class='volumeSelect'></select>
@@ -278,7 +275,7 @@
             <span class='ui-icon ui-icon-pin-w pinicon'></span>
           </div>
           <div class='tabbox idTabs'>
-            <div class='caption'>MESH</div>
+            <div id='meshPanelCaption' class='caption'>MESH</div>
 
             <a class='meshtabs selected' data-mesh-index='0'>Mesh 1</a>
             <div id='mesh1' class='tabContent'>
@@ -340,6 +337,19 @@
                 Length Threshold</div>
               <div id='threshold-fibers'
                 style='margin-left: 10px; margin-top: 4px; float: left;'></div>
+
+              <div class='menuLabel' style='clear: both; margin-top: 12px; float: left;'>Coloration</div>
+              <div id='fiber-coloration-row'
+                style='margin-left: 10px; margin-top: 12px; float: left;'>
+                <select id='fiber-coloration-selector'
+                  style='margin-left: 6px; width: 116px;'>
+                  <option value='Global'>Global direction</option>
+                  <option value='Local'>Local direction</option>
+                  <option value='Fixed'>Fixed</option>
+                  <option value='DPV0'>First Per Vertex</option>
+                  <option value='DPS0'>First Per Streamline</option>
+                </select>
+              </div>
 
 
             </div>

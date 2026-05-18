@@ -12,6 +12,7 @@ const selectbutton = document.getElementById("fileInput");
 const landingpage = document.getElementById("landingContainer");
 const viewer = document.getElementById("viewerContainer");
 const sliceOrientationLabels = document.getElementById("sliceOrientationLabels");
+const downloadNvdButton = document.getElementById("downloadNvdButton");
 let hoveredSliceOrientation = null;
 const shareController = initSharing({
     loadReceivedFile: (file) => loadFiles([file], { received: true }),
@@ -19,6 +20,10 @@ const shareController = initSharing({
 });
 
 window.shareController = shareController;
+
+if (downloadNvdButton) {
+    downloadNvdButton.addEventListener("click", () => downloadNvdScene());
+}
 
 window.addEventListener("dragenter", (e) => {
     e.preventDefault();
@@ -143,9 +148,85 @@ function start() {
 
 }
 
-function loadExample(which) {
+async function loadExample(which) {
+
+    if (which === 1) {
+        await loadNiiVueTractographyExample();
+        return;
+    }
+
+    if (which === 3) {
+        await loadNiiVueMeshStatisticsExample();
+        return;
+    }
 
     loadUrl('https://fly.cs.umb.edu/data/X/example'+which+'.nvd');
+
+}
+
+async function loadNiiVueTractographyExample() {
+    const baseUrl = "https://raw.githubusercontent.com/niivue/niivue/main/packages/niivue/demos/images/";
+
+    await nv.loadVolumes([
+        {
+            url: baseUrl + "sub-01_ses-01_dwi_desc-b0_dwi.nii.gz",
+            name: "sub-01_ses-01_dwi_desc-b0_dwi.nii.gz",
+        },
+    ]);
+    await nv.loadMeshes([
+        {
+            url: baseUrl + "sub-01_ses-01_dwi_space-RASMM_model-probCSD_algo-AFQ_tractography.trx",
+            name: "sub-01_ses-01_dwi_space-RASMM_model-probCSD_algo-AFQ_tractography.trx",
+            rgba255: [0, 142, 0, 255],
+        },
+    ]);
+    nv.setClipPlane([-0.1, 180, 0]);
+    showViewer();
+    shareController.setShareAvailable(true);
+
+}
+
+async function loadNiiVueMeshStatisticsExample() {
+    const baseUrl = "https://raw.githubusercontent.com/niivue/niivue/main/packages/niivue/demos/images/";
+    const meshLayers = [
+        {
+            url: baseUrl + "BrainMesh_ICBM152.lh.curv",
+            colormap: "gray",
+            cal_min: 0.3,
+            cal_max: 0.5,
+            opacity: 0.7,
+        },
+        {
+            url: baseUrl + "BrainMesh_ICBM152.lh.motor.mz3",
+            cal_min: 1.5,
+            cal_max: 5,
+            colormap: "green2orange",
+            colormapNegative: "green2cyan",
+            useNegativeCmap: true,
+            opacity: 0.7,
+            colormapType: 0,
+        },
+    ];
+
+    nv.setSliceType(nv.sliceTypeRender);
+    nv.opts.isColorbar = true;
+    await nv.loadMeshes([
+        {
+            url: baseUrl + "BrainMesh_ICBM152.lh.mz3",
+            name: "BrainMesh_ICBM152.lh.mz3",
+            layers: meshLayers,
+        },
+    ]);
+
+    if (nv.meshes.length > 0) {
+        const mesh = nv.meshes[nv.meshes.length - 1];
+        nv.setMeshLayerProperty(mesh.id, 0, "colorbarVisible", false);
+        nv.setMeshLayerProperty(mesh.id, 1, "cal_min", 9);
+        nv.setMeshLayerProperty(mesh.id, 1, "cal_max", 12);
+    }
+
+    showViewer();
+    shareController.setShareAvailable(true);
 
 }
 
@@ -326,6 +407,54 @@ function createShareDocumentFile() {
     });
 }
 
+function downloadNvdScene() {
+    if (!hasLoadedScene()) {
+        return;
+    }
+
+    const filename = createNvdFilename();
+
+    if (typeof window.nv.saveDocument === "function") {
+        window.nv.saveDocument(filename);
+        return;
+    }
+
+    const data = window.nv.json();
+    const blob = new Blob([JSON.stringify(data)], {
+        type: "application/json",
+    });
+    const link = document.createElement("a");
+
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function setDownloadAvailable(available) {
+    if (!downloadNvdButton) {
+        return;
+    }
+
+    downloadNvdButton.disabled = !available;
+}
+
+function hasLoadedScene() {
+    return Boolean(
+        window.nv &&
+        (
+            (Array.isArray(window.nv.volumes) && window.nv.volumes.length > 0) ||
+            (Array.isArray(window.nv.meshes) && window.nv.meshes.length > 0)
+        )
+    );
+}
+
+function createNvdFilename() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    return `slicedrop-scene-${timestamp}.nvd`;
+}
+
 async function loadNvdFromUrl(url) {
     try {
         return await niivue.NVDocument.loadFromUrl(url);
@@ -408,6 +537,7 @@ function showViewer() {
     //
     landingpage.classList.add("hidden");
     viewer.classList.remove("hidden");
+    setDownloadAvailable(hasLoadedScene());
 
 }
 

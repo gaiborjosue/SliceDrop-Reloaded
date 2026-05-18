@@ -30,6 +30,8 @@
 var selectedVolumeIndex = 0;
 var selectedMeshIndex = 0;
 var selectedMeshLayerIndex = 0;
+var selectedFiberIndex = 0;
+var selectedFiberId = null;
 var suppressMeshLayerColorUpdate = false;
 
 /**
@@ -42,6 +44,8 @@ function setupUi() {
   script.type = "text/javascript";
   script.src = "https://mpsych.github.io/powerboost/dist/powerboost.min.js";
   document.head.appendChild(script);
+
+  updatePanelCaptions();
 
   // VOLUME
   if (nv.volumes.length > 0) {
@@ -126,71 +130,25 @@ function setupUi() {
     jQuery('#mesh .menu').addClass('menuDisabled');
   }
 
-  // FIBERS
-  // if (_data.fibers.file.length > 0) {
-  if (-1 > 0) {
-
+  if (getConfigurableFibers().length > 0) {
+    populateFiberControls();
+    refreshFiberControls();
     jQuery('#fibers .menu').removeClass('menuDisabled');
-
-    jQuery("#threshold-fibers").dragslider("option", "min", fibers.scalars.min);
-    jQuery("#threshold-fibers").dragslider("option", "max", fibers.scalars.max);
-    jQuery("#threshold-fibers").dragslider("option", "values",
-        [fibers.scalars.min, fibers.scalars.max]);
-
+    pinSidebarPanel('fibers');
   } else {
-
-    // no fibers
     jQuery('#fibers .menu').addClass('menuDisabled');
-
-  }
-
-
-  // FIBERS
-  var hasFibers = false;
-  if (nv.meshes.length > 0) {
-
-    for(var m in nv.meshes) {
-
-      m = nv.meshes[m];
-
-      if (typeof m.fiberLengths !== 'undefined') {
-
-        // Fibers!
-        hasFibers = true;
-
-        jQuery('#fibers .menu').removeClass('menuDisabled');
-        pinSidebarPanel('fibers');
-
-
-        var min_fiberlength = Math.min(...nv.meshes[0].fiberLengths);
-        var max_fiberlength = Math.max(...nv.meshes[0].fiberLengths);
-
-
-        jQuery("#threshold-fibers").dragslider("option", "min", min_fiberlength);
-        jQuery("#threshold-fibers").dragslider("option", "max", max_fiberlength);
-        jQuery("#threshold-fibers").dragslider("option", "values",
-            [min_fiberlength, max_fiberlength]);
-
-        // jump out
-        // TODO only one fiber dataset supported right now
-        break;
-
-      }
-
-    }
-
-
-  }
-
-  if (!hasFibers) {
-
-    jQuery('#fibers .menu').addClass('menuDisabled');
-
   }
 
 
   // initialize_sharing();
 
+
+}
+
+function updatePanelCaptions() {
+
+  jQuery('#volumePanelCaption').text(nv.volumes.length > 1 ? 'VOLUMES' : 'VOLUME');
+  jQuery('#meshPanelCaption').text(getConfigurableMeshes().length > 1 ? 'MESHES' : 'MESH');
 
 }
 
@@ -222,36 +180,45 @@ function getSelectedVolume() {
 
 function populateVolumeControls() {
 
-  var selector = jQuery('#volume-selector');
-  var row = jQuery('#volume-select-row');
-  var layerGroup = jQuery('#volume-layer-group');
-  var currentValue = selector.val();
-  var hasMultipleVolumes = nv.volumes.length > 1;
+  var labelmapSwitch = jQuery('#labelmapSwitch');
 
-  row.toggleClass('volume-select-row--colors-only', !hasMultipleVolumes);
-  layerGroup.toggle(hasMultipleVolumes);
-
-  selector.empty();
+  selectedVolumeIndex = Math.min(selectedVolumeIndex, nv.volumes.length - 1);
+  jQuery('#volumetabs > .volumetabs').remove();
 
   for (var i = 0; i < nv.volumes.length; i++) {
-    var volume = nv.volumes[i];
-    var label = volume.name || volume.url || ('Volume ' + (i + 1));
-    var role = i === 0 ? 'base' : 'overlay';
+    var tab = jQuery('<a>', {
+      class: 'volumetabs' + (i === selectedVolumeIndex ? ' selected' : ''),
+      href: '#volumeTab',
+      text: 'Volume ' + (i + 1)
+    });
 
-    selector.append(jQuery('<option>', {
-      value: i,
-      text: (i + 1) + '. ' + label + ' (' + role + ')'
-    }));
+    tab.attr('data-volume-index', i);
+    tab.css('left', (i * 64) + 'px');
+    tab.insertBefore(labelmapSwitch);
   }
 
-  if (currentValue !== null && currentValue !== '' && Number(currentValue) < nv.volumes.length) {
-    selectedVolumeIndex = Number(currentValue);
-  } else {
-    selectedVolumeIndex = Math.min(selectedVolumeIndex, nv.volumes.length - 1);
-  }
+  bindVolumeTabs();
 
-  selector.val(String(selectedVolumeIndex));
   populateColormapSelector();
+
+}
+
+function bindVolumeTabs() {
+
+  jQuery('#volumetabs > .volumetabs').off('click.volumeselect');
+  jQuery('#volumetabs > .volumetabs').on('click.volumeselect', function(event) {
+    event.preventDefault();
+    selectedVolumeIndex = Number(jQuery(this).attr('data-volume-index')) || 0;
+    jQuery('#labelmapTab').hide();
+    jQuery('#volumeTab').show();
+    jQuery('#labelmapSwitch').removeClass('selected');
+    refreshVolumeControls();
+  });
+
+  jQuery('#labelmapSwitch').off('click.volumeselect');
+  jQuery('#labelmapSwitch').on('click.volumeselect', function() {
+    jQuery('#volumetabs > .volumetabs').removeClass('selected');
+  });
 
 }
 
@@ -302,7 +269,8 @@ function refreshVolumeControls() {
 
   console.log('Setting up volume', selectedVolumeIndex);
 
-  jQuery('#volume-selector').val(String(selectedVolumeIndex));
+  jQuery('#volumetabs > .volumetabs').removeClass('selected');
+  jQuery('#volumetabs > .volumetabs[data-volume-index="' + selectedVolumeIndex + '"]').addClass('selected');
   ensureColormapOption(volume.colormap);
   jQuery('#colormap-volume').val(volume.colormap || 'gray');
 
@@ -421,6 +389,7 @@ function refreshMeshLayerControls(mesh) {
   var layers = Array.isArray(mesh.layers) ? mesh.layers : [];
 
   selector.empty();
+  refreshMeshColorbarVisibility(layers);
 
   if (layers.length === 0) {
     selector.append(jQuery('<option>', {
@@ -454,6 +423,22 @@ function refreshMeshLayerControls(mesh) {
   jQuery("#threshold-scalars").dragslider("option", "min", range.min);
   jQuery("#threshold-scalars").dragslider("option", "max", range.max);
   jQuery("#threshold-scalars").dragslider("option", "values", [range.calMin, range.calMax]);
+
+}
+
+function refreshMeshColorbarVisibility(layers) {
+
+  if (layers.length <= 1) {
+    return;
+  }
+
+  nv.opts.isColorbar = true;
+
+  for (var i = 0; i < layers.length; i++) {
+    layers[i].colorbarVisible = i > 0;
+  }
+
+  nv.updateGLVolume();
 
 }
 
@@ -517,17 +502,217 @@ function bindMeshTabs() {
 
 }
 
+function getConfigurableFibers() {
+
+  if (!nv || !Array.isArray(nv.meshes)) {
+    return [];
+  }
+
+  return nv.meshes
+    .map(function(mesh, index) {
+      return { mesh: mesh, index: index };
+    })
+    .filter(function(entry) {
+      return typeof entry.mesh.fiberLengths !== 'undefined';
+    });
+
+}
+
+function getSelectedFiber() {
+
+  var fibers = getConfigurableFibers();
+
+  if (fibers.length === 0) {
+    return null;
+  }
+
+  var selected = null;
+
+  if (selectedFiberId !== null) {
+    selected = fibers.find(function(entry) {
+      return String(entry.mesh.id) === String(selectedFiberId);
+    });
+  }
+
+  if (!selected) {
+    selected = fibers.find(function(entry) {
+      return entry.index === selectedFiberIndex;
+    });
+  }
+
+  if (!selected) {
+    selected = fibers[0];
+  }
+
+  selectedFiberIndex = selected.index;
+  selectedFiberId = selected.mesh.id;
+
+  return selected.mesh;
+
+}
+
+function populateFiberControls() {
+
+  var fibers = getConfigurableFibers();
+  var fiberContent = jQuery('#fibers1');
+
+  jQuery('#fibers .fiberstabs').remove();
+
+  if (!fibers.some(function(entry) {
+    return String(entry.mesh.id) === String(selectedFiberId);
+  })) {
+    var selectedByIndex = fibers.find(function(entry) {
+      return entry.index === selectedFiberIndex;
+    }) || fibers[0];
+
+    selectedFiberIndex = selectedByIndex.index;
+    selectedFiberId = selectedByIndex.mesh.id;
+  }
+
+  for (var i = 0; i < fibers.length; i++) {
+    var entry = fibers[i];
+    var tab = jQuery('<a>', {
+      class: 'fiberstabs' + (String(entry.mesh.id) === String(selectedFiberId) ? ' selected' : ''),
+      text: 'Fibers ' + (i + 1)
+    });
+
+    tab.attr('data-fiber-index', entry.index);
+    tab.attr('data-fiber-id', entry.mesh.id);
+    tab.css('left', (i * 63) + 'px');
+    tab.insertBefore(fiberContent);
+  }
+
+  bindFiberTabs();
+
+}
+
+function refreshFiberControls() {
+
+  var fiber = getSelectedFiber();
+
+  if (!fiber) {
+    return;
+  }
+
+  jQuery('#fibers .fiberstabs').removeClass('selected');
+  jQuery('#fibers .fiberstabs').filter(function() {
+    return String(jQuery(this).attr('data-fiber-id')) === String(selectedFiberId);
+  }).addClass('selected');
+  jQuery('#threshold-fibers').dragslider("option", "disabled", false);
+
+  var range = getFiberLengthRange(fiber);
+  var threshold = Number.isFinite(fiber.fiberLength) ? fiber.fiberLength : range.min;
+
+  if (fiber._sliceDropFiberHidden) {
+    threshold = range.max;
+  }
+
+  threshold = Math.max(range.min, Math.min(range.max, threshold));
+
+  jQuery("#threshold-fibers").dragslider("option", "min", range.min);
+  jQuery("#threshold-fibers").dragslider("option", "max", range.max);
+  jQuery("#threshold-fibers").dragslider("option", "values", [threshold, range.max]);
+  refreshFiberVisibilityControl(fiber);
+  refreshFiberColorationControls(fiber);
+
+}
+
+function getFiberLengthRange(fiber) {
+
+  var lengths = fiber && fiber.fiberLengths && Number.isFinite(fiber.fiberLengths.length)
+    ? fiber.fiberLengths
+    : [];
+  var min = Infinity;
+  var max = -Infinity;
+
+  for (var i = 0; i < lengths.length; i++) {
+    var length = Number(lengths[i]);
+
+    if (!Number.isFinite(length)) {
+      continue;
+    }
+
+    min = Math.min(min, length);
+    max = Math.max(max, length);
+  }
+
+  if (!Number.isFinite(min)) {
+    min = 0;
+  }
+
+  if (!Number.isFinite(max)) {
+    max = 1;
+  }
+
+  if (min === max) {
+    max = min + 1;
+  }
+
+  return {
+    min: min,
+    max: max
+  };
+
+}
+
+function bindFiberTabs() {
+
+  jQuery('#fibers .fiberstabs').off('click.fiberselect');
+  jQuery('#fibers .fiberstabs').on('click.fiberselect', function() {
+    selectedFiberIndex = Number(jQuery(this).attr('data-fiber-index')) || 0;
+    selectedFiberId = jQuery(this).attr('data-fiber-id');
+    refreshFiberControls();
+  });
+
+}
+
+function refreshFiberVisibilityControl(fiber) {
+
+  jQuery('#fibersvisibility')
+    .toggleClass('show-icon', !fiber._sliceDropFiberHidden)
+    .toggleClass('hide-icon', Boolean(fiber._sliceDropFiberHidden));
+
+}
+
+function refreshFiberColorationControls(fiber) {
+
+  var selector = jQuery('#fiber-coloration-selector');
+  var selectedColoration = fiber.fiberColor || 'Global';
+  var options = [
+    { value: 'Global', text: 'Global direction' },
+    { value: 'Local', text: 'Local direction' },
+    { value: 'Fixed', text: 'Fixed' }
+  ];
+
+  if (fiber.dpv && fiber.dpv.length > 0) {
+    options.push({ value: 'DPV0', text: 'First Per Vertex' });
+  }
+
+  if (fiber.dps && fiber.dps.length > 0) {
+    options.push({ value: 'DPS0', text: 'First Per Streamline' });
+  }
+
+  selector.empty();
+
+  for (var i = 0; i < options.length; i++) {
+    selector.append(jQuery('<option>', options[i]));
+  }
+
+  if (selectedColoration && selector.find('option[value="' + selectedColoration + '"]').length === 0) {
+    selector.append(jQuery('<option>', {
+      value: selectedColoration,
+      text: selectedColoration
+    }));
+  }
+
+  selector.val(selectedColoration);
+
+}
+
 function scalarsSelectorChanged() {
 
   selectedMeshLayerIndex = Number(jQuery('#scalars-selector').val()) || 0;
   refreshMeshControls();
-
-}
-
-function volumeSelectorChanged() {
-
-  selectedVolumeIndex = Number(jQuery('#volume-selector').val()) || 0;
-  refreshVolumeControls();
 
 }
 
@@ -983,14 +1168,32 @@ function componentToHex(value) {
 //
 function toggleFibersVisibility() {
 
-  // if (!fibers) {
-  //   return;
-  // }
+  var fiber = getSelectedFiber();
 
-  nv.meshes[0].visible = !nv.meshes[0].visible;
-  nv.updateGLVolume();
+  if (!fiber) {
+    return;
+  }
 
-  // fibers.visible = !fibers.visible;
+  var range = getFiberLengthRange(fiber);
+
+  if (fiber._sliceDropFiberHidden) {
+    fiber._sliceDropFiberHidden = false;
+    nv.setMeshProperty(
+      fiber.id,
+      "fiberLength",
+      Number.isFinite(fiber._sliceDropFiberVisibleLength)
+        ? fiber._sliceDropFiberVisibleLength
+        : range.min
+    );
+  } else {
+    fiber._sliceDropFiberHidden = true;
+    fiber._sliceDropFiberVisibleLength = Number.isFinite(fiber.fiberLength)
+      ? fiber.fiberLength
+      : range.min;
+    nv.setMeshProperty(fiber.id, "fiberLength", range.max + 1);
+  }
+
+  refreshFiberControls();
 
   // if (RT.linked) {
 
@@ -1004,12 +1207,16 @@ function toggleFibersVisibility() {
 
 function thresholdFibers(event, ui) {
 
+  var fiber = getSelectedFiber();
 
-  nv.setMeshProperty(
-    nv.meshes[0].id,
-    "fiberLength",
-    ui.values[0]
-  );
+  if (!fiber) {
+    return;
+  }
+
+  fiber._sliceDropFiberHidden = false;
+  fiber._sliceDropFiberVisibleLength = ui.values[0];
+  nv.setMeshProperty(fiber.id, "fiberLength", ui.values[0]);
+  refreshFiberVisibilityControl(fiber);
 
 
   // if (!fibers) {
@@ -1026,5 +1233,19 @@ function thresholdFibers(event, ui) {
   //   RT._updater2 = setTimeout(RT.pushFibersScalars.bind(RT, 'upperThreshold', fibers.scalars.upperThreshold), 150);
 
   // }
+
+}
+
+function fiberColorationChanged() {
+
+  var fiber = getSelectedFiber();
+  var colorName = jQuery('#fiber-coloration-selector').val();
+
+  if (!fiber || !colorName) {
+    return;
+  }
+
+  nv.setMeshProperty(fiber.id, "fiberGroupColormap", null);
+  nv.setMeshProperty(fiber.id, "fiberColor", colorName);
 
 }

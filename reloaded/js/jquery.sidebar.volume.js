@@ -76,7 +76,6 @@ jQuery(function() {
     change: bgColorVolume
   });
 
-  jQuery('#volume-selector').change(volumeSelectorChanged);
   jQuery('#colormap-volume').change(colormapVolumeChanged);
   
   jQuery('#inverted').button();

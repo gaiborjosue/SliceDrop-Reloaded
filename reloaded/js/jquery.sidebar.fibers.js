@@ -34,6 +34,8 @@ jQuery(function() {
 
     toggleFibersVisibility();
   });
+
+  jQuery('#fiber-coloration-selector').change(fiberColorationChanged);
   
   jQuery("#threshold-fibers").dragslider({
     range: true,

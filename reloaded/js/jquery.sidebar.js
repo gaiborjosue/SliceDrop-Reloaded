@@ -87,19 +87,14 @@ jQuery(function() {
   // .. for meshes
   jQuery(".meshtabs").off('mouseenter');
   // .. for fibers
-  jQuery(".fiberstabs").bind('mouseenter', function() {
-
-    jQuery('.fiberstabs').removeClass('selected');
-    jQuery(this).addClass("selected");
-    
-  });
+  jQuery(".fiberstabs").off('mouseenter');
   
   // a show/hide button
   jQuery('.eye').button();
   jQuery('.eye').unbind('mouseenter').unbind('mouseleave');
   jQuery('.eye').click(function() {
 
-    jQuery('.eye').toggleClass('show-icon').toggleClass('hide-icon');
+    jQuery(this).toggleClass('show-icon').toggleClass('hide-icon');
     
   });
   
