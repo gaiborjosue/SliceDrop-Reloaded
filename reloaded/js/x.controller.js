@@ -27,6 +27,8 @@
 
 */
 
+var selectedVolumeIndex = 0;
+
 /**
  * Setup all UI elements once the loading was completed.
  */
@@ -41,34 +43,8 @@ function setupUi() {
   // VOLUME
   if (nv.volumes.length > 0) {
 
-    for(var v in nv.volumes) {
-
-      var volume = nv.volumes[v];
-
-      console.log('Setting up volume', v);
-
-      // TODO add volume tab
-
-
-
-      // update threshold slider
-      jQuery('#windowlevel-volume').dragslider("option", "max", volume.global_max);
-      jQuery('#windowlevel-volume').dragslider("option", "min", volume.global_min);
-      jQuery('#windowlevel-volume').dragslider("option", "values",
-          [volume.cal_min, volume.cal_max]);
-
-
-      // RIGHT NOW we only support one volume loaded
-      break;
-
-    }
-
-
-
-
-
-
-
+    populateVolumeControls();
+    refreshVolumeControls();
 
     // // update window/level slider
     // jQuery('#windowlevel-volume').dragslider("option", "max", volume.max);
@@ -80,13 +56,11 @@ function setupUi() {
 
 
 
-    // update 3d opacity
-    jQuery('#opacity-volume').slider("option", "value", 100);
     // volume.opacity = 0.2; // re-propagate
     // volume.modified();
 
     // update 2d slice sliders
-    var dim = volume.range;
+    var dim = getSelectedVolume().range;
 
     // // ax
     // jQuery("#blue_slider").slider("option", "disabled", false);
@@ -259,6 +233,139 @@ function setupUi() {
 
 }
 
+function getSelectedVolume() {
+
+  if (!nv || !nv.volumes || nv.volumes.length === 0) {
+    return null;
+  }
+
+  selectedVolumeIndex = Math.min(
+    Math.max(selectedVolumeIndex, 0),
+    nv.volumes.length - 1
+  );
+
+  return nv.volumes[selectedVolumeIndex];
+
+}
+
+function populateVolumeControls() {
+
+  var selector = jQuery('#volume-selector');
+  var row = jQuery('#volume-select-row');
+  var layerGroup = jQuery('#volume-layer-group');
+  var currentValue = selector.val();
+  var hasMultipleVolumes = nv.volumes.length > 1;
+
+  row.toggleClass('volume-select-row--colors-only', !hasMultipleVolumes);
+  layerGroup.toggle(hasMultipleVolumes);
+
+  selector.empty();
+
+  for (var i = 0; i < nv.volumes.length; i++) {
+    var volume = nv.volumes[i];
+    var label = volume.name || volume.url || ('Volume ' + (i + 1));
+    var role = i === 0 ? 'base' : 'overlay';
+
+    selector.append(jQuery('<option>', {
+      value: i,
+      text: (i + 1) + '. ' + label + ' (' + role + ')'
+    }));
+  }
+
+  if (currentValue !== null && currentValue !== '' && Number(currentValue) < nv.volumes.length) {
+    selectedVolumeIndex = Number(currentValue);
+  } else {
+    selectedVolumeIndex = Math.min(selectedVolumeIndex, nv.volumes.length - 1);
+  }
+
+  selector.val(String(selectedVolumeIndex));
+  populateColormapSelector();
+
+}
+
+function populateColormapSelector() {
+
+  var selector = jQuery('#colormap-volume');
+  var colormaps = typeof nv.colormaps === 'function' ? nv.colormaps() : [];
+
+  selector.empty();
+
+  for (var i = 0; i < colormaps.length; i++) {
+    var name = typeof colormaps[i] === 'string' ? colormaps[i] : colormaps[i].name;
+
+    if (!name) {
+      continue;
+    }
+
+  selector.append(jQuery('<option>', {
+      value: name,
+      text: name
+    }));
+  }
+
+}
+
+function ensureColormapOption(name) {
+
+  var selector = jQuery('#colormap-volume');
+
+  if (!name || selector.find('option[value="' + name + '"]').length > 0) {
+    return;
+  }
+
+  selector.append(jQuery('<option>', {
+    value: name,
+    text: name
+  }));
+
+}
+
+function refreshVolumeControls() {
+
+  var volume = getSelectedVolume();
+
+  if (!volume) {
+    return;
+  }
+
+  console.log('Setting up volume', selectedVolumeIndex);
+
+  jQuery('#volume-selector').val(String(selectedVolumeIndex));
+  ensureColormapOption(volume.colormap);
+  jQuery('#colormap-volume').val(volume.colormap || 'gray');
+
+  jQuery('#windowlevel-volume').dragslider("option", "max", volume.global_max);
+  jQuery('#windowlevel-volume').dragslider("option", "min", volume.global_min);
+  jQuery('#windowlevel-volume').dragslider("option", "values",
+      [volume.cal_min, volume.cal_max]);
+
+  jQuery('#opacity-volume').slider("option", "value", Math.round((volume.opacity ?? 1) * 100));
+
+}
+
+function volumeSelectorChanged() {
+
+  selectedVolumeIndex = Number(jQuery('#volume-selector').val()) || 0;
+  refreshVolumeControls();
+
+}
+
+function colormapVolumeChanged() {
+
+  var volume = getSelectedVolume();
+  var colormap = jQuery('#colormap-volume').val();
+
+  if (!volume || !colormap) {
+    return;
+  }
+
+  nv.setColormap(volume.id, colormap);
+  volume.fgcolor = {r:1,g:1,b:1};
+  volume.bgcolor = {r:0,g:0,b:0};
+  nv.updateGLVolume();
+
+}
+
 function volumerenderingOnOff(bool) {
 
   if (bool) {
@@ -292,8 +399,14 @@ function volumerenderingOnOff(bool) {
 
 function windowLevelVolume(event, ui) {
 
-  nv.volumes[0].cal_min = ui.values[0];
-  nv.volumes[0].cal_max = ui.values[1];
+  var volume = getSelectedVolume();
+
+  if (!volume) {
+    return;
+  }
+
+  volume.cal_min = ui.values[0];
+  volume.cal_max = ui.values[1];
   nv.updateGLVolume();
 
   // if (!volume) {
@@ -344,7 +457,11 @@ function opacity3dVolume(event, ui) {
   //   return;
   // }
 
-  nv.setOpacity(0, ui.value / 100);
+  if (!getSelectedVolume()) {
+    return;
+  }
+
+  nv.setOpacity(selectedVolumeIndex, ui.value / 100);
 
   // volume.opacity = ui.value / 100;
 
@@ -412,7 +529,13 @@ function opacity3dVolume(event, ui) {
 
 function fgColorVolume(hex, rgb) {
 
-  nv.volumes[0].fgcolor = rgb;
+  var volume = getSelectedVolume();
+
+  if (!volume) {
+    return;
+  }
+
+  volume.fgcolor = rgb;
 
   // if (!volume) {
   //   return;
@@ -433,7 +556,13 @@ function fgColorVolume(hex, rgb) {
 
 function bgColorVolume(hex, rgb) {
 
-  nv.volumes[0].bgcolor = rgb;
+  var volume = getSelectedVolume();
+
+  if (!volume) {
+    return;
+  }
+
+  volume.bgcolor = rgb;
 
   // if (!volume) {
   //   return;
@@ -454,14 +583,19 @@ function bgColorVolume(hex, rgb) {
 
 function updateColorMap() {
 
+  var volume = getSelectedVolume();
 
+  if (!volume) {
+    return;
+  }
 
+  const cmap = generateColorMap(volume.bgcolor, volume.fgcolor);
 
-  const cmap = generateColorMap(nv.volumes[0].bgcolor, nv.volumes[0].fgcolor);
-
-  const key = "CustomGradient";
+  const key = "CustomGradient-" + volume.id;
   nv.addColormap(key, cmap);
-  nv.volumes[0].colormap = key;
+  ensureColormapOption(key);
+  nv.setColormap(volume.id, key);
+  jQuery('#colormap-volume').val(key);
   nv.updateGLVolume();
 
 

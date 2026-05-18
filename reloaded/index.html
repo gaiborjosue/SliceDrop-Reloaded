@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0' />
 
-    <link rel="stylesheet" href="./css/styles.css" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260518-share-count" />
     <link type='text/css' rel='stylesheet' href='css/xtheme/jquery.ui.css' />
     <link type='text/css' rel='stylesheet' href='css/jquery.miniColors.css' />
     <link type='text/css' rel='stylesheet' href='css/jquery.sidebar.css' />
@@ -24,7 +24,7 @@
     <script type='text/javascript' src='js/jquery.viewer.js'></script>
     <script type='text/javascript' src='js/x.controller.js'></script>
 
-    <script type="module" src="./js/index.js"></script>
+    <script type="module" src="./js/index.js?v=20260518-default-volume-3d"></script>
 
     <link rel="icon" href="./gfx/slicedrop_logo.png" />
   </head>
@@ -33,14 +33,23 @@
     <div id='dropZoneOverlay'><div id='dropZoneHint'>Drop files anywhere...</div></div>
 
     <section id="sharePanel" class="share-panel hidden" aria-live="polite">
-      <button id="shareButton" class="share-panel__icon-button" type="button" disabled aria-label="Share volume" title="Share volume">
-        <img src="./gfx/share.svg" alt="" aria-hidden="true" />
-      </button>
+      <div class="share-panel__trigger-row">
+        <div id="shareTransferCount" class="share-panel__transfer-count hidden" title="Completed transfers" aria-label="Completed transfers">
+          <span id="shareTransferCountValue">0</span>
+          <img src="./gfx/users.svg" alt="" aria-hidden="true" />
+        </div>
+        <button id="shareButton" class="share-panel__icon-button" type="button" disabled aria-label="Share volume" title="Share volume">
+          <img src="./gfx/share.svg" alt="" aria-hidden="true" />
+        </button>
+      </div>
       <div id="sharePopover" class="share-panel__popover hidden">
         <div class="share-panel__link-row">
           <input id="shareLink" class="share-panel__link hidden" type="text" readonly aria-label="Share link" />
           <button id="copyShareLink" class="share-panel__icon-button share-panel__icon-button--secondary hidden" type="button" aria-label="Copy share link" title="Copy link">
             <img src="./gfx/copy.svg" alt="" aria-hidden="true" />
+          </button>
+          <button id="refreshShareLink" class="share-panel__icon-button share-panel__icon-button--secondary hidden" type="button" aria-label="Create new share link" title="Create new link">
+            <img src="./gfx/refresh-ccw.svg" alt="" aria-hidden="true" />
           </button>
         </div>
         <div id="shareStatus" class="share-panel__status">Drop a .nii or .nii.gz file to share.</div>
@@ -217,13 +226,24 @@
                   size='6' value='#000000' />
               </div>
 
+              <div id='volume-select-row'>
+                <div id='volume-layer-group' class='volumeSelectGroup'>
+                  <label class='menuLabel' for='volume-selector'>Layer</label>
+                  <select id='volume-selector' class='volumeSelect'></select>
+                </div>
+                <div id='volume-colormap-group' class='volumeSelectGroup'>
+                  <label class='menuLabel' for='colormap-volume'>Colors</label>
+                  <select id='colormap-volume' class='volumeSelect'></select>
+                </div>
+              </div>
+
               <div id='opacity-label' class='menuLabel'
                 style='margin-top: 4px; float: left;'>Opacity</div>
               <div id='opacity-volume'
                 style='margin-left: 10px; margin-top: 4px; float: left;'></div>
 
               <div id='windowlevel-label' class='menuLabel'
-                style='margin-top: 4px; float: left;'>Window/Level</div>
+                style='margin-top: 4px; float: left;'>Threshold Range</div>
               <div id='windowlevel-volume'
                 style='margin-left: 10px; margin-top: 4px; float: left;'></div>
 
@@ -346,6 +366,7 @@
 
 
       <canvas id="gl1"></canvas>
+      <div id="sliceOrientationLabels" class="slice-orientation-labels" aria-hidden="true"></div>
 <!--       <input
         type="range"
         id="axSlider"

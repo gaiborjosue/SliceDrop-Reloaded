@@ -1,6 +1,6 @@
 import * as niivue from "https://unpkg.com/@niivue/niivue@0.68.2/dist/index.js";
 import "./util.js";
-import { initSharing } from "./share.js";
+import { initSharing } from "./share.js?v=20260518-share-count";
 
 window.niivue = niivue;
 
@@ -11,6 +11,8 @@ const overlay = document.getElementById("dropZoneOverlay");
 const selectbutton = document.getElementById("fileInput");
 const landingpage = document.getElementById("landingContainer");
 const viewer = document.getElementById("viewerContainer");
+const sliceOrientationLabels = document.getElementById("sliceOrientationLabels");
+let hoveredSliceOrientation = null;
 const shareController = initSharing({
     loadReceivedFile: (file) => loadFiles([file], { received: true }),
     getShareFile: () => createShareDocumentFile(),
@@ -82,12 +84,14 @@ function start() {
     const nv = new niivue.Niivue({
       backColor: [0.1, 0.1, 0.1, 1],
       show3Dcrosshair: false,
-      onImageLoaded: () => {
+      onImageLoaded: (volume) => {
 
         setupUi();
-        nv.setVolumeRenderIllumination(-1);
-        nv.volumes[0].fgcolor = {r:1,g:1,b:1};
-        nv.volumes[0].bgcolor = {r:0,g:0,b:0};
+        nv.setVolumeRenderIllumination(0);
+        if (volume) {
+          volume.fgcolor = volume.fgcolor || {r:1,g:1,b:1};
+          volume.bgcolor = volume.bgcolor || {r:0,g:0,b:0};
+        }
 
         showViewer();
         shareController.setShareAvailable(true);
@@ -113,7 +117,11 @@ function start() {
 
     nv.attachTo('gl1');
     nv.setHeroImage(7 * 0.1);
-    nv.opts.textHeight = 0.02;
+    nv.opts.fontMinPx = 18;
+    nv.opts.fontSizeScaling = 0.45;
+    nv.setIsOrientationTextVisible(true);
+    nv.setShowAllOrientationMarkers(true);
+    nv.setCornerOrientationText(false);
     // nv.opts.isOrientCube = true;
     nv.opts.isAntiAlias = true;
     nv.opts.crosshairWidth = 0.1;
@@ -129,6 +137,7 @@ function start() {
     nv.setInterpolation(true);
 
     window.nv = nv;
+    installSliceOrientationLabels(nv);
 
     loadInitialUrl();
 
@@ -400,6 +409,133 @@ function showViewer() {
     landingpage.classList.add("hidden");
     viewer.classList.remove("hidden");
 
+}
+
+function installSliceOrientationLabels(nv) {
+    const drawScene = nv.drawScene.bind(nv);
+    const canvas = nv.canvas;
+
+    nv.drawScene = (...args) => {
+        const result = drawScene(...args);
+        updateSliceOrientationLabels(nv);
+        return result;
+    };
+
+    if (canvas) {
+        canvas.addEventListener("mousemove", (event) => {
+            const nextHoveredSlice = getPointerSliceOrientation(nv, event);
+
+            if (nextHoveredSlice !== hoveredSliceOrientation) {
+                hoveredSliceOrientation = nextHoveredSlice;
+                updateSliceOrientationLabels(nv);
+            }
+        });
+
+        canvas.addEventListener("mouseleave", () => {
+            if (hoveredSliceOrientation !== null) {
+                hoveredSliceOrientation = null;
+                updateSliceOrientationLabels(nv);
+            }
+        });
+    }
+
+    window.addEventListener("resize", () => {
+        window.requestAnimationFrame(() => updateSliceOrientationLabels(nv));
+    });
+    window.requestAnimationFrame(() => updateSliceOrientationLabels(nv));
+}
+
+function updateSliceOrientationLabels(nv) {
+    if (!sliceOrientationLabels || !nv.canvas || !Array.isArray(nv.screenSlices)) {
+        return;
+    }
+
+    sliceOrientationLabels.replaceChildren();
+
+    if (viewer.classList.contains("hidden") ||
+        nv.opts.sliceType !== nv.sliceTypeMultiplanar ||
+        hoveredSliceOrientation === null) {
+        return;
+    }
+
+    const canvas = nv.canvas;
+    const scaleX = canvas.width / canvas.clientWidth || 1;
+    const scaleY = canvas.height / canvas.clientHeight || 1;
+    const seenLabels = new Set();
+
+    for (const slice of nv.screenSlices) {
+        if (slice.axCorSag !== hoveredSliceOrientation) {
+            continue;
+        }
+
+        const label = getSliceOrientationLabel(slice.axCorSag);
+        const bounds = slice.leftTopWidthHeight;
+
+        if (!label || seenLabels.has(label) || !Array.isArray(bounds)) {
+            continue;
+        }
+
+        const [left, top, width, height] = bounds;
+
+        if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+            continue;
+        }
+
+        seenLabels.add(label);
+
+        const element = document.createElement("div");
+        element.className = "slice-orientation-label";
+        element.textContent = label;
+        element.style.left = `${left / scaleX}px`;
+        element.style.top = `${top / scaleY}px`;
+
+        sliceOrientationLabels.appendChild(element);
+    }
+}
+
+function getPointerSliceOrientation(nv, event) {
+    if (!nv.canvas || !Array.isArray(nv.screenSlices)) {
+        return null;
+    }
+
+    const canvas = nv.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const scale = nv.uiData?.dpr || canvas.width / canvas.clientWidth || 1;
+    const x = (event.clientX - rect.left) * scale;
+    const y = (event.clientY - rect.top) * scale;
+
+    for (const slice of nv.screenSlices) {
+        const label = getSliceOrientationLabel(slice.axCorSag);
+        const bounds = slice.leftTopWidthHeight;
+
+        if (!label || !Array.isArray(bounds)) {
+            continue;
+        }
+
+        const [left, top, width, height] = bounds;
+
+        if (x >= left && y >= top && x <= left + width && y <= top + height) {
+            return slice.axCorSag;
+        }
+    }
+
+    return null;
+}
+
+function getSliceOrientationLabel(axCorSag) {
+    if (axCorSag === 0) {
+        return "Axial";
+    }
+
+    if (axCorSag === 1) {
+        return "Coronal";
+    }
+
+    if (axCorSag === 2) {
+        return "Sagittal";
+    }
+
+    return "";
 }
 
 

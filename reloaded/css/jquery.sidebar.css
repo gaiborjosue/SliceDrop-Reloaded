@@ -78,7 +78,7 @@
 #volumeTab {
 	border: 0;
 	box-sizing: border-box;
-	height: 214px;
+	height: 236px;
 	overflow: hidden;
 	position: relative;
 }
@@ -90,7 +90,7 @@
 
 #volume .menu,
 #volume .tabbox {
-	height: 230px;
+	height: 252px;
 }
 
 #volumeTab #modes {
@@ -110,7 +110,7 @@
 #volumeTab #windowlevel-label {
 	clear: both;
 	float: left !important;
-	margin-top: 9px !important;
+	margin-top: 8px !important;
 	width: 62px;
 }
 
@@ -119,9 +119,49 @@
 	box-sizing: border-box;
 	float: left !important;
 	margin-left: 6px !important;
-	margin-top: 11px !important;
+	margin-top: 10px !important;
 	max-width: 106px;
 	width: 106px !important;
+}
+
+#volumeTab #volume-select-row {
+	clear: both;
+	display: grid;
+	gap: 6px;
+	grid-template-columns: 64px 100px;
+	margin-top: 0;
+	padding-top: 14px;
+	width: 170px;
+}
+
+#volumeTab #volume-select-row.volume-select-row--colors-only {
+	grid-template-columns: 106px;
+	width: 106px;
+}
+
+#volumeTab .volumeSelectGroup {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+#volumeTab .volumeSelectGroup .menuLabel {
+	line-height: 12px;
+	margin: 0 !important;
+	width: auto;
+}
+
+#volumeTab .volumeSelect {
+	background: #1c1c1c;
+	border: 1px solid #AFAFAF;
+	box-sizing: border-box;
+	color: #fff;
+	font-size: 10px;
+	height: 18px;
+	margin: 0 !important;
+	min-width: 0;
+	width: 100% !important;
 }
 
 .navigation {

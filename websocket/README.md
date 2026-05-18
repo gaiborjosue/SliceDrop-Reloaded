@@ -2,7 +2,7 @@
 
 Standalone WebSocket signaling service for SliceDrop Reloaded peer-to-peer sharing.
 
-This service does not store or relay NIfTI file bytes. It only relays WebRTC setup messages between one sender and one receiver in a temporary room.
+This service does not store or relay NIfTI file bytes. It only relays WebRTC setup messages between one sender and any number of receivers in a temporary room.
 
 ## Deploy
 
@@ -71,6 +71,7 @@ Relay WebRTC signal:
 {
   "type": "signal",
   "roomId": "...",
+  "targetId": "receiver-client-id",
   "payload": {
     "description": { "type": "offer", "sdp": "..." }
   }
@@ -83,16 +84,19 @@ or:
 {
   "type": "signal",
   "roomId": "...",
+  "targetId": "sender-client-id",
   "payload": {
     "candidate": { "candidate": "...", "sdpMid": "0", "sdpMLineIndex": 0 }
   }
 }
 ```
 
+When the sender receives `peer-joined`, it should create one WebRTC peer connection for that `peerId` and include that value as `targetId` for all signals to that receiver. Each receiver sends signals back to the sender; the server routes those directly to the room host.
+
 ## Abuse Controls
 
 - 128-bit random room IDs
-- one sender and one receiver per room
+- one sender and multiple receivers per room
 - room TTL cleanup
 - max WebSocket message size
 - per-IP connection limit

@@ -34,6 +34,7 @@ jQuery(function() {
   // VOLUME
   //
   jQuery('#volumerendering').button();
+  jQuery('#volumerendering').addClass('ui-state-active');
   jQuery('#volumerendering').unbind('mouseenter').unbind('mouseleave');
   jQuery('#volumerendering').click(function() {
 
@@ -48,7 +49,6 @@ jQuery(function() {
     
   });
   jQuery('#slicing').button();
-  jQuery('#slicing').addClass('ui-state-active');
   jQuery('#slicing').unbind('mouseenter').unbind('mouseleave');
   jQuery('#slicing').click(function() {
 
@@ -75,6 +75,9 @@ jQuery(function() {
     letterCase: 'uppercase',
     change: bgColorVolume
   });
+
+  jQuery('#volume-selector').change(volumeSelectorChanged);
+  jQuery('#colormap-volume').change(colormapVolumeChanged);
   
   jQuery('#inverted').button();
   

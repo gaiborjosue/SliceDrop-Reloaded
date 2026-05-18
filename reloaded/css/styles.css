@@ -56,6 +56,29 @@ body {
   overflow: hidden;
 }
 
+.slice-orientation-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 700;
+}
+
+.slice-orientation-label {
+  position: absolute;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 2px;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  text-transform: uppercase;
+  transform: translate(6px, 6px);
+}
+
 .landing-container {
   min-height: 100vh;
   width: 100vw;
@@ -320,12 +343,6 @@ body {
 #dropZoneOverlay {
   width: 100%;
   height: 100%;
-  
-/*  max-width: 600px;*/
-/*  background-color: #000;  Changed to black to blend with background */
-/*  border: 2px dashed #333; /* Added subtle border */*/
-/*  border-radius: 8px;*/
-/*  padding: 40px 20px;*/
   text-align: center;
   transition: border-color 0.3s ease;
   z-index: 5000;
@@ -447,6 +464,34 @@ body {
   z-index: 6000;
   color: #fff;
   font-size: 12px;
+}
+
+.share-panel__trigger-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.share-panel__transfer-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.share-panel__transfer-count img {
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
 }
 
 .share-panel__popover {

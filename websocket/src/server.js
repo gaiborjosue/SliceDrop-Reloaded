@@ -136,7 +136,7 @@ function handleCreate(client) {
   const room = {
     id: roomId,
     host: client,
-    guest: null,
+    guests: new Map(),
     createdAt: Date.now(),
     lastSeenAt: Date.now(),
   };
@@ -149,6 +149,11 @@ function handleCreate(client) {
 }
 
 function handleJoin(client, message) {
+  if (client.roomId) {
+    sendJson(client, { type: "error", message: "Client is already in a room." });
+    return;
+  }
+
   const roomId = normalizeRoomId(message.roomId);
   const room = roomId ? rooms.get(roomId) : null;
 
@@ -162,24 +167,19 @@ function handleJoin(client, message) {
     return;
   }
 
-  if (room.guest && room.guest !== client) {
-    sendJson(client, { type: "error", message: "Share room already has a receiver." });
-    return;
-  }
-
-  room.guest = client;
+  room.guests.set(client.id, client);
   room.lastSeenAt = Date.now();
   client.roomId = roomId;
   client.role = "guest";
 
-  sendJson(client, { type: "joined", roomId });
-  sendJson(room.host, { type: "peer-joined" });
+  sendJson(client, { type: "joined", roomId, clientId: client.id, hostId: room.host.id });
+  sendJson(room.host, { type: "peer-joined", peerId: client.id });
 }
 
 function handleSignal(client, message) {
   const roomId = normalizeRoomId(message.roomId || client.roomId);
   const room = roomId ? rooms.get(roomId) : null;
-  const peer = getPeer(client, room);
+  const peer = getSignalPeer(client, room, message.targetId);
 
   if (!peer) {
     sendJson(client, { type: "error", message: "Peer is not connected." });
@@ -192,19 +192,24 @@ function handleSignal(client, message) {
   }
 
   room.lastSeenAt = Date.now();
-  sendJson(peer, { type: "signal", payload: message.payload });
+  sendJson(peer, {
+    type: "signal",
+    payload: message.payload,
+    senderId: client.id,
+    targetId: peer.id,
+  });
 }
 
-function getPeer(client, room) {
+function getSignalPeer(client, room, targetId) {
   if (!room) {
     return null;
   }
 
   if (room.host === client) {
-    return room.guest;
+    return typeof targetId === "string" ? room.guests.get(targetId) : null;
   }
 
-  if (room.guest === client) {
+  if (room.guests.get(client.id) === client) {
     return room.host;
   }
 
@@ -225,11 +230,6 @@ function removeClient(client) {
   }
 
   const room = rooms.get(client.roomId);
-  const peer = getPeer(client, room);
-  if (peer) {
-    sendJson(peer, { type: "peer-left" });
-  }
-
   if (!room) {
     return;
   }
@@ -237,12 +237,15 @@ function removeClient(client) {
   if (room.host === client) {
     rooms.delete(room.id);
     stats.rooms = Math.max(0, stats.rooms - 1);
-    if (room.guest) {
-      room.guest.roomId = null;
-      room.guest.role = null;
+
+    for (const guest of room.guests.values()) {
+      sendJson(guest, { type: "peer-left", peerId: client.id });
+      guest.roomId = null;
+      guest.role = null;
     }
-  } else if (room.guest === client) {
-    room.guest = null;
+  } else if (room.guests.get(client.id) === client) {
+    room.guests.delete(client.id);
+    sendJson(room.host, { type: "peer-left", peerId: client.id });
   }
 }
 
@@ -255,17 +258,17 @@ function expireRooms() {
     }
 
     sendJson(room.host, { type: "error", message: "Share room expired." });
-    sendJson(room.guest, { type: "error", message: "Share room expired." });
+
+    for (const guest of room.guests.values()) {
+      sendJson(guest, { type: "error", message: "Share room expired." });
+      guest.roomId = null;
+      guest.role = null;
+    }
 
     if (room.host) {
       room.host.roomId = null;
       room.host.role = null;
       statsForIp(room.host.ip).rooms = Math.max(0, statsForIp(room.host.ip).rooms - 1);
-    }
-
-    if (room.guest) {
-      room.guest.roomId = null;
-      room.guest.role = null;
     }
 
     rooms.delete(room.id);
