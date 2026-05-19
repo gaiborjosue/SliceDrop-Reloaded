@@ -1086,6 +1086,10 @@ input[type="range"]:active::-moz-range-thumb {
     display: none;
   }
 
+  .drop-zone__divider {
+    display: none;
+  }
+
   .drop-zone__button {
     border-radius: 6px;
     display: inline-flex;
