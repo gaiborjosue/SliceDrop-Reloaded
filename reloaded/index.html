@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0' />
 
-    <link rel="stylesheet" href="./css/styles.css?v=20260518-download-nvd" />
+    <link rel="stylesheet" href="./css/styles.css?v=20260518-mobile-upload" />
     <link type='text/css' rel='stylesheet' href='css/xtheme/jquery.ui.css' />
     <link type='text/css' rel='stylesheet' href='css/jquery.miniColors.css' />
     <link type='text/css' rel='stylesheet' href='css/jquery.sidebar.css?v=20260518-volume-pin-layer' />
@@ -22,9 +22,9 @@
     <script type='text/javascript' src='js/jquery.sidebar.mesh.js?v=20260518-mesh-no-shader'></script>
     <script type='text/javascript' src='js/jquery.sidebar.fibers.js?v=20260518-fiber-coloration'></script>
     <script type='text/javascript' src='js/jquery.viewer.js'></script>
-    <script type='text/javascript' src='js/x.controller.js?v=20260518-custom-colormaps'></script>
+    <script type='text/javascript' src='js/x.controller.js?v=20260518-mobile-home'></script>
 
-    <script type="module" src="./js/index.js?v=20260518-custom-colormaps"></script>
+    <script type="module" src="./js/index.js?v=20260518-mobile-upload"></script>
 
     <link rel="icon" href="./gfx/slicedrop_logo.png" />
   </head>
@@ -122,6 +122,8 @@
         </div>
       </header>
 
+      <div class="mobile-choice-divider">or</div>
+
       <div class="main-content">
         <!-- Drag & Drop Zone -->
         <section class="dropzone-section">
@@ -129,12 +131,11 @@
             <div class="drop-zone__content">
               <span id="dropText" class="drop-zone__text">
                 Drop your files here! 
-                <!-- or  -->
               </span>
-<!--               <label class="drop-zone__button">
+              <label class="drop-zone__button">
                 Select files
                 <input type="file" id="fileInput" class="hidden" multiple />
-              </label> -->
+              </label>
             </div>
           </div>
         </section>

@@ -40,10 +40,13 @@ var suppressMeshLayerColorUpdate = false;
 function setupUi() {
 
   // LOAD POWERBOOST
-  var script = document.createElement("script");
-  script.type = "text/javascript";
-  script.src = "https://mpsych.github.io/powerboost/dist/powerboost.min.js";
-  document.head.appendChild(script);
+  if (!isMobileViewport() && !document.getElementById('powerboostScript')) {
+    var script = document.createElement("script");
+    script.id = 'powerboostScript';
+    script.type = "text/javascript";
+    script.src = "https://mpsych.github.io/powerboost/dist/powerboost.min.js";
+    document.head.appendChild(script);
+  }
 
   updatePanelCaptions();
 
@@ -154,12 +157,23 @@ function updatePanelCaptions() {
 
 function pinSidebarPanel(panelId) {
 
+  if (isMobileViewport()) {
+    return;
+  }
+
   var item = jQuery('#' + panelId);
   var menu = item.find('.menu');
   var pin = item.find('.pinicon');
 
   menu.stop().css('marginLeft', '-2px');
   pin.removeClass('ui-icon-pin-w').addClass('ui-icon-pin-s');
+
+}
+
+function isMobileViewport() {
+
+  return window.matchMedia &&
+    window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 
 }
 

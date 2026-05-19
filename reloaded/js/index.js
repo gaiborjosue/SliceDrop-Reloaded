@@ -25,6 +25,13 @@ if (downloadNvdButton) {
     downloadNvdButton.addEventListener("click", () => downloadNvdScene());
 }
 
+if (selectbutton) {
+    selectbutton.addEventListener("change", (e) => {
+        loadFiles(e.target.files);
+        e.target.value = "";
+    });
+}
+
 window.addEventListener("dragenter", (e) => {
     e.preventDefault();
     e.stopPropagation();
