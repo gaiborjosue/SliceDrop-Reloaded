@@ -1,3 +1,5 @@
+<img width="1858" height="990" alt="image" src="https://github.com/user-attachments/assets/8514c290-77bc-4914-ac80-715a0ddd2293" />
+
 # SliceDrop Reloaded
 
 Lightweight, browser-based medical imaging viewer powered by NiiVue.
