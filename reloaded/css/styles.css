@@ -401,6 +401,10 @@ body {
 
 .drop-zone__content {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .drop-zone__text {
@@ -415,6 +419,26 @@ body {
   margin: 1rem 0;
   font-family: sans-serif;
   font-weight: 400;
+}
+
+.drop-zone__divider {
+  align-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  display: flex;
+  font-size: 0.78rem;
+  gap: 10px;
+  justify-content: center;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  width: min(280px, 80vw);
+}
+
+.drop-zone__divider::before,
+.drop-zone__divider::after {
+  background: rgba(255, 255, 255, 0.14);
+  content: "";
+  height: 1px;
+  flex: 1;
 }
 
 .drop-zone__button {
