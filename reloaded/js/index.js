@@ -87,9 +87,11 @@ window.addEventListener("drop", (e) => {
 
 // });
 
-start();
+start().catch((error) => {
+    console.error("Failed to start SliceDrop Reloaded", error);
+});
 
-function start() {
+async function start() {
     //
     // START NIIVUE
     //
@@ -127,7 +129,7 @@ function start() {
       }
     });
 
-    nv.attachTo('gl1');
+    await nv.attachTo('gl1');
     nv.setHeroImage(7 * 0.1);
     nv.opts.fontMinPx = 18;
     nv.opts.fontSizeScaling = 0.45;
