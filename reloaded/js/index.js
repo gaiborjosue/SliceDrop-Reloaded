@@ -583,9 +583,12 @@ function isStructuredClonePayload(value) {
 
 async function loadNvdDocument(doc) {
     restoreSliceDropSceneMetadata(doc);
+    showViewer();
+    await refreshViewerCanvas();
     await nv.loadDocument(doc);
     window.doc = doc;
     showViewer();
+    await refreshViewerCanvas();
     shareController.setShareAvailable(true);
     console.log("Loaded scene!");
 }
@@ -598,6 +601,34 @@ function showViewer() {
     viewer.classList.remove("hidden");
     setDownloadAvailable(hasLoadedScene());
 
+}
+
+function refreshViewerCanvas() {
+    return new Promise((resolve) => {
+        window.requestAnimationFrame(() => {
+            if (typeof nv.resizeListener === "function") {
+                nv.resizeListener();
+            }
+
+            if (typeof nv.updateGLVolume === "function") {
+                nv.updateGLVolume();
+            } else if (typeof nv.drawScene === "function") {
+                nv.drawScene();
+            }
+
+            window.requestAnimationFrame(() => {
+                if (typeof nv.resizeListener === "function") {
+                    nv.resizeListener();
+                }
+
+                if (typeof nv.drawScene === "function") {
+                    nv.drawScene();
+                }
+
+                resolve();
+            });
+        });
+    });
 }
 
 function installSliceOrientationLabels(nv) {
