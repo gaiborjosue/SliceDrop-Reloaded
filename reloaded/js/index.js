@@ -165,7 +165,7 @@ async function loadExample(which) {
     }
 
     if (which === 2) {
-        await loadUrl("./gfx/example_axon.nvd");
+        await loadAxonSegmentationExample();
         return;
     }
 
@@ -176,6 +176,31 @@ async function loadExample(which) {
 
     loadUrl('https://fly.cs.umb.edu/data/X/example'+which+'.nvd');
 
+}
+
+async function loadAxonSegmentationExample() {
+    // Use GitHub's raw host directly so the browser can fetch with CORS.
+    const baseUrl = "https://raw.githubusercontent.com/gaiborjosue/axonsynth/refs/heads/main/inference/";
+
+    await nv.loadVolumes([
+        {
+            url: baseUrl + "raw_original.nii.gz",
+            name: "raw_original.nii.gz",
+            colormap: "gray",
+            opacity: 1,
+        },
+        {
+            url: baseUrl + "classes.nii.gz",
+            name: "classes.nii.gz",
+            colormap: "x_rain",
+            opacity: 0.5,
+            cal_min: 0,
+            cal_max: 2,
+        },
+    ]);
+
+    showViewer();
+    shareController.setShareAvailable(true);
 }
 
 async function loadNiiVueTractographyExample() {
@@ -266,13 +291,19 @@ function loadInitialUrl() {
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
 
-    if (!url) {
+    if (url) {
+        loadUrl(url).catch((error) => {
+            console.error("Failed to load URL", error);
+        });
         return;
     }
 
-    loadUrl(url).catch((error) => {
-        console.error("Failed to load URL", error);
-    });
+    const example = params.get("example");
+    if (/^[1-3]$/.test(example)) {
+        loadExample(Number(example)).catch((error) => {
+            console.error("Failed to load example", error);
+        });
+    }
 }
 
 function getUrlFileName(url) {

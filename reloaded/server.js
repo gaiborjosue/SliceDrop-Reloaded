@@ -25,6 +25,13 @@ const server = http.createServer((request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host}`);
   let pathname = decodeURIComponent(requestUrl.pathname);
 
+  const exampleMatch = pathname.match(/^\/([1-3])\/?$/);
+  if (exampleMatch) {
+    response.writeHead(302, { Location: `/?example=${exampleMatch[1]}` });
+    response.end();
+    return;
+  }
+
   if (pathname.startsWith("/share/") && /^\/share\/(css|gfx|js|matcaps)\//.test(pathname)) {
     pathname = pathname.replace(/^\/share/, "");
   }
